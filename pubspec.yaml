@@ -1,0 +1,16 @@
+name: flutter_kin_sdk
+description: A flutter Kin SDK plugin.
+version: 0.0.1
+author: DipDev Studio <info@dipdev.studio>
+homepage: https://git.dipdev.studio/open-source/flutter/kin_sdk
+
+environment:
+  sdk: ">=2.0.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    androidPackage: studio.dipdev.flutter.kinsdk
+    pluginClass: FlutterKinSdkPlugin
