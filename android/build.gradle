@@ -18,6 +18,9 @@ rootProject.allprojects {
     repositories {
         google()
         jcenter()
+        maven {
+            url 'https://jitpack.io'
+        }
     }
 }
 
@@ -33,12 +36,20 @@ android {
     defaultConfig {
         minSdkVersion 16
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        multiDexEnabled true
     }
     lintOptions {
         disable 'InvalidPackage'
+    }
+    buildTypes {
+        release {
+            multiDexKeepFile file('multidex-config.txt')
+        }
     }
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'com.github.kinecosystem:kin-devplatform-android:0.8.9'
+    implementation 'com.android.support:multidex:1.0.3'
 }
