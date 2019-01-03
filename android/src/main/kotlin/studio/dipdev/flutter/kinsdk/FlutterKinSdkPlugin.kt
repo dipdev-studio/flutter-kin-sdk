@@ -58,7 +58,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 val token: String? = call.argument("token")
                 Kin.start(context, token!!, Environment.getProduction())
                 kinInit = true
-//                Kin.addBalanceObserver(balanceObserver)
+                Kin.addBalanceObserver(balanceObserver)
             }
             call.method == "launchKinMarket" -> Kin.launchMarketplace(activity)
             call.method == "getWallet" -> Kin.getPublicAddress()
@@ -71,6 +71,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 kinSpend(jwt!!)
             }
             call.method == "kinPayToUser" -> {
+                println("🔥 in kotlin file")
                 val jwt: String? = call.argument("jwt")
                 kinPayToUser(jwt!!)
             }
@@ -112,15 +113,18 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     private fun kinPayToUser(jwt: String) {
         try {
+            println("🔥 in pay method " + jwt)
             Kin.payToUser(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
+                    println("🔥 onFailute " + p0.toString())
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
+                    println("🔥 onResponse")
                 }
             })
         } catch (e: Throwable) {
-
+            println("🔥" + e.toString())
         }
 
     }
