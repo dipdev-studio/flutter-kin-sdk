@@ -35,19 +35,19 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         @JvmStatic
         fun registerWith(registrar: Registrar) {
             val channel = MethodChannel(registrar.messenger(), "flutter_kin_sdk")
-            val instance = FlutterKinSdkPlugin(registrar.activity(), registrar.context())
+            val instance = FlutterKinSdkPlugin(registrar.activity(), registrar.activity().applicationContext)
             channel.setMethodCallHandler(instance)
 
-            EventChannel(registrar.view(), "flutter_kin_sdk_balance").setStreamHandler(
-                    object : EventChannel.StreamHandler {
-                        override fun onListen(args: Any?, events: EventChannel.EventSink) {
-                            balanceCallback = events
-                        }
-
-                        override fun onCancel(args: Any?) {
-                        }
-                    }
-            )
+//            EventChannel(registrar.view(), "flutter_kin_sdk_balance").setStreamHandler(
+//                    object : EventChannel.StreamHandler {
+//                        override fun onListen(args: Any?, events: EventChannel.EventSink) {
+//                            balanceCallback = events
+//                        }
+//
+//                        override fun onCancel(args: Any?) {
+//                        }
+//                    }
+//            )
 
         }
     }
@@ -56,9 +56,10 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         when {
             call.method == "kinStart" -> {
                 val token: String? = call.argument("token")
-                Kin.start(context, token!!, Environment.getProduction())
+                if (token == null) return
+                Kin.start(context, token, Environment.getProduction())
                 kinInit = true
-                Kin.addBalanceObserver(balanceObserver)
+//                Kin.addBalanceObserver(balanceObserver)
             }
             call.method == "launchKinMarket" -> Kin.launchMarketplace(activity)
             call.method == "getWallet" -> Kin.getPublicAddress()
@@ -87,9 +88,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             Kin.requestPayment(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
+                    println("🔥 onFailute " + p0.toString())
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
+                    println("🔥 onResponse" + p0.toString())
                 }
             })
         } catch (e: Throwable) {
@@ -100,9 +103,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             Kin.purchase(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
+                    println("🔥 onFailute " + p0.toString())
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
+                    println("🔥 onResponse" + p0.toString())
                 }
             })
         } catch (e: Throwable) {
@@ -113,14 +118,13 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     private fun kinPayToUser(jwt: String) {
         try {
-            println("🔥 in pay method " + jwt)
             Kin.payToUser(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
                     println("🔥 onFailute " + p0.toString())
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
-                    println("🔥 onResponse")
+                    println("🔥 onResponse" + p0.toString())
                 }
             })
         } catch (e: Throwable) {
