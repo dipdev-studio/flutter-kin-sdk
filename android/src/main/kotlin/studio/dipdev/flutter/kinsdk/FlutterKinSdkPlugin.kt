@@ -38,16 +38,16 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             val instance = FlutterKinSdkPlugin(registrar.activity(), registrar.activity().applicationContext)
             channel.setMethodCallHandler(instance)
 
-//            EventChannel(registrar.view(), "flutter_kin_sdk_balance").setStreamHandler(
-//                    object : EventChannel.StreamHandler {
-//                        override fun onListen(args: Any?, events: EventChannel.EventSink) {
-//                            balanceCallback = events
-//                        }
-//
-//                        override fun onCancel(args: Any?) {
-//                        }
-//                    }
-//            )
+            EventChannel(registrar.view(), "flutter_kin_sdk_balance").setStreamHandler(
+                    object : EventChannel.StreamHandler {
+                        override fun onListen(args: Any?, events: EventChannel.EventSink) {
+                            balanceCallback = events
+                        }
+
+                        override fun onCancel(args: Any?) {
+                        }
+                    }
+            )
 
         }
     }
@@ -59,7 +59,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 if (token == null) return
                 Kin.start(context, token, Environment.getProduction())
                 kinInit = true
-//                Kin.addBalanceObserver(balanceObserver)
+                Kin.addBalanceObserver(balanceObserver)
             }
             call.method == "launchKinMarket" -> Kin.launchMarketplace(activity)
             call.method == "getWallet" -> Kin.getPublicAddress()
