@@ -62,7 +62,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 Kin.addBalanceObserver(balanceObserver)
             }
             call.method == "launchKinMarket" -> Kin.launchMarketplace(activity)
-            call.method == "getWallet" -> Kin.getPublicAddress()
+            call.method == "getWallet" -> result.success(Kin.getPublicAddress())
             call.method == "kinEarn" -> {
                 val jwt: String? = call.argument("jwt")
                 kinEarn(jwt!!)

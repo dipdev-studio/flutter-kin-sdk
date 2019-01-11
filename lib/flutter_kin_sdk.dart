@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 class FlutterKinSdk {
 static MethodChannel _methodChannel = MethodChannel('flutter_kin_sdk');
 
-  static const stream = const EventChannel('flutter_kin_sdk_balance');
+  static const _stream = const EventChannel('flutter_kin_sdk_balance');
   static StreamSubscription subscription = null;
 
   static Future<String> get platformVersion async {
@@ -13,14 +13,14 @@ static MethodChannel _methodChannel = MethodChannel('flutter_kin_sdk');
     return version;
   }
 
-  static Future kinStart(String token, balanceObserver) async {
+  static EventChannel get balanceStream{
+    return _stream;
+  }
+
+  static Future<EventChannel> kinStart(String token, balanceObserver) async {
     final Map<String, dynamic> params = <String, dynamic>{
       'token': token,
     };
-
-    subscription = stream.receiveBroadcastStream().listen((balance){
-      balanceObserver(balance);
-    });
     await _methodChannel.invokeMethod('kinStart', params);
   }
 
