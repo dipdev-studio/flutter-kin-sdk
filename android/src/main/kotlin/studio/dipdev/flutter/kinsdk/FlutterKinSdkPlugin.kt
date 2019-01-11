@@ -24,13 +24,13 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     private var balanceObserver = object : Observer<Balance>() {
         override fun onChanged(p0: Balance?) {
             if (p0 != null) {
-                balanceCallback.success(p0.amount.longValueExact())
+                balanceCallback?.success(p0.amount.longValueExact())
             }
         }
     }
 
     companion object {
-        lateinit var balanceCallback: EventChannel.EventSink
+        var balanceCallback: EventChannel.EventSink? = null
 
         @JvmStatic
         fun registerWith(registrar: Registrar) {
@@ -42,6 +42,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                     object : EventChannel.StreamHandler {
                         override fun onListen(args: Any?, events: EventChannel.EventSink) {
                             balanceCallback = events
+                            println(balanceCallback)
                         }
 
                         override fun onCancel(args: Any?) {
