@@ -6,7 +6,6 @@ class FlutterKinSdk {
 static MethodChannel _methodChannel = MethodChannel('flutter_kin_sdk');
 
   static const _stream = const EventChannel('flutter_kin_sdk_balance');
-  static StreamSubscription subscription = null;
 
   static Future<String> get platformVersion async {
     final String version = await _methodChannel.invokeMethod('getPlatformVersion');
@@ -17,7 +16,7 @@ static MethodChannel _methodChannel = MethodChannel('flutter_kin_sdk');
     return _stream;
   }
 
-  static Future<EventChannel> kinStart(String token, balanceObserver) async {
+  static Future kinStart(String token, balanceObserver) async {
     final Map<String, dynamic> params = <String, dynamic>{
       'token': token,
     };
