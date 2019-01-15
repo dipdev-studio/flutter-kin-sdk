@@ -2,13 +2,15 @@ import Flutter
 import UIKit
 import KinDevPlatform
 
-public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
+public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     
     private var balanceCallback: FlutterEventSink?
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "flutter_kin_sdk", binaryMessenger: registrar.messenger())
+        let eventChannel = FlutterEventChannel.init(name: "flutter_kin_sdk_balance", binaryMessenger: registrar.messenger())
         let instance = SwiftFlutterKinSdkPlugin()
+        eventChannel.setStreamHandler(instance)
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
     
@@ -22,16 +24,16 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             } catch {
                 print(error)
             }
-            
-//            var balanceObserverId: String? = nil
-//            do {
-//                balanceObserverId = try Kin.shared.addBalanceObserver { balance in
-//                    self.balanceCallback!(balance.amount)
-//                    print("balance: \(balance.amount)")
-//                }
-//            } catch {
-//                print("Error setting balance observer: \(error)")
-//            }
+                    var balanceObserverId: String? = nil
+                    do {
+                        balanceObserverId = try Kin.shared.addBalanceObserver { balance in
+                            let intBalance = (balance.amount as NSDecimalNumber).intValue
+                            self.balanceCallback?(intBalance)
+                            print("balance: \(balance.amount)")
+                        }
+                    } catch {
+                        print("Error setting balance observer: \(error)")
+                    }
         }
         if(call.method.elementsEqual("launchKinMarket")){
             let viewController = (UIApplication.shared.delegate?.window??.rootViewController)!;
@@ -64,11 +66,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     private func kinEarn(jwt : String){
         Kin.shared.purchase(offerJWT: jwt) { jwtConfirmation, error in
             if let confirm = jwtConfirmation {
-                // jwtConfirmation can be kept on digital service side as a receipt proving user received his Kin.
-                // Send confirmation JWT back to the server in order prove that the user completed
-                // the blockchain transaction and purchase can be unlocked for this user.
+                print("🔥 kinEarn confirm")
             } else if let e = error {
-                // handle error
+                print("🔴 kinEarn error \(e)")
             }
         }
     }
@@ -77,10 +77,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         let handler: ExternalOfferCallback = { jwtConfirmation, error in
             let alert = UIAlertController(title: nil, message: nil, preferredStyle: .alert)
             if let confirm = jwtConfirmation {
-                // Callback will be called once payment transaction to the user completed successfully.
-                // jwtConfirmation can be kept on digital service side as a receipt proving user received his Kin.
+                print("🔥 kinSpend confirm")
             } else if let e = error {
-                //handle error
+                print("🔴 kinSpend error \(e)")
             }
         }
         Kin.shared.requestPayment(offerJWT: jwt, completion: handler)
@@ -89,12 +88,19 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     private func kinPayToUser(jwt : String){
         Kin.shared.payToUser(offerJWT: jwt) { jwtConfirmation, error in
             if let confirm = jwtConfirmation {
-                // jwtConfirmation can be kept on digital service side as a receipt proving user received his Kin.
-                // Send confirmation JWT back to the server in order prove that the user completed
-                // the blockchain transaction and purchase can be unlocked for this user.
+                print("🔥 kinPayToUser confirm")
             } else if let e = error {
-                // handle error
+                print("🔴 kinPayToUser error \(e)")
             }
         }
+    }
+    
+    public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        balanceCallback = events
+        return nil
+    }
+    
+    public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        return nil
     }
 }
