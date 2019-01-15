@@ -2,15 +2,18 @@ import Flutter
 import UIKit
 import KinDevPlatform
 
-public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
+public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
-    private var balanceCallback: FlutterEventSink?
+    static let balanceFlutterController = FlutterStreamController()
+    static let infoFlutterController = FlutterStreamController()
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "flutter_kin_sdk", binaryMessenger: registrar.messenger())
-        let eventChannel = FlutterEventChannel.init(name: "flutter_kin_sdk_balance", binaryMessenger: registrar.messenger())
+        let balanceEventChannel = FlutterEventChannel.init(name: "flutter_kin_sdk_balance", binaryMessenger: registrar.messenger())
+        let infoEventChannel = FlutterEventChannel.init(name: "flutter_kin_sdk_info", binaryMessenger: registrar.messenger())
         let instance = SwiftFlutterKinSdkPlugin()
-        eventChannel.setStreamHandler(instance)
+        balanceEventChannel.setStreamHandler(balanceFlutterController)
+        infoEventChannel.setStreamHandler(infoFlutterController)
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
     
@@ -24,20 +27,19 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHan
             } catch {
                 print(error)
             }
-                    var balanceObserverId: String? = nil
-                    do {
-                        balanceObserverId = try Kin.shared.addBalanceObserver { balance in
-                            let intBalance = (balance.amount as NSDecimalNumber).intValue
-                            self.balanceCallback?(intBalance)
-                            print("balance: \(balance.amount)")
-                        }
-                    } catch {
-                        print("Error setting balance observer: \(error)")
-                    }
+            do {
+                _ = try Kin.shared.addBalanceObserver { balance in
+                    let intBalance = (balance.amount as NSDecimalNumber).intValue
+                    SwiftFlutterKinSdkPlugin.balanceFlutterController.eventCallback?(intBalance)
+                    print("balance: \(balance.amount)")
+                }
+            } catch {
+                self.sendReport(type: "balanceObserver", status: false, message: String(describing: error))
+                print("Error setting balance observer: \(error)")
+            }
         }
         if(call.method.elementsEqual("launchKinMarket")){
             let viewController = (UIApplication.shared.delegate?.window??.rootViewController)!;
-
             Kin.shared.launchMarketplace(from: viewController)
         }
         if(call.method.elementsEqual("getWallet")){
@@ -64,43 +66,60 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHan
     }
     
     private func kinEarn(jwt : String){
-        Kin.shared.purchase(offerJWT: jwt) { jwtConfirmation, error in
-            if let confirm = jwtConfirmation {
-                print("🔥 kinEarn confirm")
+        _ = Kin.shared.purchase(offerJWT: jwt) { jwtConfirmation, error in
+            if jwtConfirmation != nil {
+                self.sendReport(type: "kinEarn", status: true, message: String(describing: jwtConfirmation))
             } else if let e = error {
-                print("🔴 kinEarn error \(e)")
+                self.sendReport(type: "kinEarn", status: false, message: String(describing: e))
             }
         }
     }
     
     private func kinSpend(jwt : String){
         let handler: ExternalOfferCallback = { jwtConfirmation, error in
-            let alert = UIAlertController(title: nil, message: nil, preferredStyle: .alert)
-            if let confirm = jwtConfirmation {
-                print("🔥 kinSpend confirm")
+            _ = UIAlertController(title: nil, message: nil, preferredStyle: .alert)
+            if jwtConfirmation != nil {
+                self.sendReport(type: "kinSpend", status: true, message: String(describing: jwtConfirmation))
             } else if let e = error {
-                print("🔴 kinSpend error \(e)")
+                self.sendReport(type: "kinSpend", status: false, message: String(describing: e))
             }
         }
-        Kin.shared.requestPayment(offerJWT: jwt, completion: handler)
+        _ = Kin.shared.requestPayment(offerJWT: jwt, completion: handler)
     }
     
     private func kinPayToUser(jwt : String){
-        Kin.shared.payToUser(offerJWT: jwt) { jwtConfirmation, error in
-            if let confirm = jwtConfirmation {
-                print("🔥 kinPayToUser confirm")
+        _ = Kin.shared.payToUser(offerJWT: jwt) { jwtConfirmation, error in
+            if jwtConfirmation != nil {
+                self.sendReport(type: "kinPayToUser", status: true, message: String(describing: jwtConfirmation))
             } else if let e = error {
-                print("🔴 kinPayToUser error \(e)")
+                self.sendReport(type: "kinPayToUser", status: false, message: String(describing: e))
             }
         }
     }
     
-    public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-        balanceCallback = events
-        return nil
+    private func sendReport(type: String, status: Bool, message: String){
+        let info = Info(type: type, status: status, message: message)
+        let encoder = JSONEncoder()
+        let data = try! encoder.encode(info)
+        SwiftFlutterKinSdkPlugin.infoFlutterController.eventCallback?(String(data: data, encoding: .utf8)!)
     }
     
-    public func onCancel(withArguments arguments: Any?) -> FlutterError? {
-        return nil
+    class FlutterStreamController : NSObject, FlutterStreamHandler {
+        var eventCallback: FlutterEventSink?
+        
+        public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+            eventCallback = events
+            return nil
+        }
+        
+        public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+            return nil
+        }
+    }
+    
+    struct Info:Encodable {
+        let type: String
+        let status: Bool
+        let message: String
     }
 }
