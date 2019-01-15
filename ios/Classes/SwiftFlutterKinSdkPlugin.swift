@@ -24,6 +24,16 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHan
             } catch {
                 print(error)
             }
+                    var balanceObserverId: String? = nil
+                    do {
+                        balanceObserverId = try Kin.shared.addBalanceObserver { balance in
+                            let intBalance = (balance.amount as NSDecimalNumber).intValue
+                            self.balanceCallback?(intBalance)
+                            print("balance: \(balance.amount)")
+                        }
+                    } catch {
+                        print("Error setting balance observer: \(error)")
+                    }
         }
         if(call.method.elementsEqual("launchKinMarket")){
             let viewController = (UIApplication.shared.delegate?.window??.rootViewController)!;
@@ -87,15 +97,6 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin, FlutterStreamHan
     
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         balanceCallback = events
-//        var balanceObserverId: String? = nil
-//        do {
-//            balanceObserverId = try Kin.shared.addBalanceObserver { balance in
-//                self.balanceCallback?(balance)
-//                print("balance: \(balance.amount)")
-//            }
-//        } catch {
-//            print("Error setting balance observer: \(error)")
-//        }
         return nil
     }
     
