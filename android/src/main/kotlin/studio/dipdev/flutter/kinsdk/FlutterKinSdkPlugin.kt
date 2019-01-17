@@ -14,6 +14,7 @@ import kin.devplatform.base.Observer
 import kin.devplatform.data.model.Balance
 import kin.devplatform.data.model.OrderConfirmation
 import kin.devplatform.exception.KinEcosystemException
+import com.google.gson.*
 import android.app.Activity
 import android.util.Log
 
@@ -31,6 +32,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     companion object {
         var balanceCallback: EventChannel.EventSink? = null
+        var infoCallback: EventChannel.EventSink? = null
 
         @JvmStatic
         fun registerWith(registrar: Registrar) {
@@ -42,7 +44,17 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                     object : EventChannel.StreamHandler {
                         override fun onListen(args: Any?, events: EventChannel.EventSink) {
                             balanceCallback = events
-                            println(balanceCallback)
+                        }
+
+                        override fun onCancel(args: Any?) {
+                        }
+                    }
+            )
+
+            EventChannel(registrar.view(), "flutter_kin_sdk_info").setStreamHandler(
+                    object : EventChannel.StreamHandler {
+                        override fun onListen(args: Any?, events: EventChannel.EventSink) {
+                            infoCallback = events
                         }
 
                         override fun onCancel(args: Any?) {
@@ -65,6 +77,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             call.method == "launchKinMarket" -> Kin.launchMarketplace(activity)
             call.method == "getWallet" -> result.success(Kin.getPublicAddress())
             call.method == "kinEarn" -> {
+                println("kinEarn start")
                 val jwt: String? = call.argument("jwt")
                 kinEarn(jwt!!)
             }
@@ -89,11 +102,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             Kin.requestPayment(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
-                    println("🔥 onFailute " + p0.toString())
+                    sendReport("kinEarn", false, p0.toString())
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
-                    println("🔥 onResponse" + p0.toString())
+                    sendReport("kinEarn", true, p0.toString())
                 }
             })
         } catch (e: Throwable) {
@@ -104,11 +117,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             Kin.purchase(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
-                    println("🔥 onFailute " + p0.toString())
+                    sendReport("kinSpend", false, p0.toString())
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
-                    println("🔥 onResponse" + p0.toString())
+                    sendReport("kinSpend", true, p0.toString())
                 }
             })
         } catch (e: Throwable) {
@@ -121,11 +134,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             Kin.payToUser(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
-                    println("🔥 onFailute " + p0.toString())
+                    sendReport("kinPayToUser", false, p0.toString())
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
-                    println("🔥 onResponse" + p0.toString())
+                    sendReport("kinPayToUser", true, p0.toString())
                 }
             })
         } catch (e: Throwable) {
@@ -138,13 +151,25 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             Kin.getOrderConfirmation(offerId, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
+                    sendReport("orderConfirmation", false, p0.toString())
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
+                    sendReport("orderConfirmation", true, p0.toString())
                 }
             })
         } catch (e: Throwable) {
 
         }
     }
+
+    fun sendReport(type: String, status: Boolean, message: String) {
+        println("sendReport")
+        val info: Info = Info(type, status, message)
+        val gson = Gson()
+        val jsonInfo = gson.toJson(info)
+        infoCallback?.success(jsonInfo.toString())
+    }
+
+    data class Info(val type: String, val status: Boolean, val message: String)
 }
