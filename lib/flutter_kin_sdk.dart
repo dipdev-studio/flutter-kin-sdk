@@ -3,21 +3,22 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 class FlutterKinSdk {
-static MethodChannel _methodChannel = MethodChannel('flutter_kin_sdk');
+  static MethodChannel _methodChannel = MethodChannel('flutter_kin_sdk');
 
   static const _stream = const EventChannel('flutter_kin_sdk_balance');
   static const _streamInfo = const EventChannel('flutter_kin_sdk_info');
 
   static Future<String> get platformVersion async {
-    final String version = await _methodChannel.invokeMethod('getPlatformVersion');
+    final String version =
+        await _methodChannel.invokeMethod('getPlatformVersion');
     return version;
   }
 
-  static EventChannel get balanceStream{
+  static EventChannel get balanceStream {
     return _stream;
   }
 
-  static EventChannel get infoStream{
+  static EventChannel get infoStream {
     return _streamInfo;
   }
 
@@ -30,6 +31,10 @@ static MethodChannel _methodChannel = MethodChannel('flutter_kin_sdk');
 
   static Future launchKinMarket() async {
     await _methodChannel.invokeMethod('launchKinMarket');
+  }
+
+  static Future initBalanceObserver() async {
+    await _methodChannel.invokeMethod('initBalanceObserver');
   }
 
   static Future kinEarn(String jwt) async {
@@ -55,7 +60,7 @@ static MethodChannel _methodChannel = MethodChannel('flutter_kin_sdk');
 
   static Future orderConfirmation(String offerId) async {
     final Map<String, dynamic> params = <String, dynamic>{
-    'offerId': offerId,
+      'offerId': offerId,
     };
     await _methodChannel.invokeMethod('orderConfirmation', params);
   }
