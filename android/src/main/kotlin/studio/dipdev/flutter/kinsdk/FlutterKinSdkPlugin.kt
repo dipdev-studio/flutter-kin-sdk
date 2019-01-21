@@ -1,8 +1,10 @@
 package studio.dipdev.flutter.kinsdk
 
+import android.app.Activity
 import android.content.Context
-import io.flutter.plugin.common.MethodCall
+import com.google.gson.Gson
 import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
@@ -14,13 +16,10 @@ import kin.devplatform.base.Observer
 import kin.devplatform.data.model.Balance
 import kin.devplatform.data.model.OrderConfirmation
 import kin.devplatform.exception.KinEcosystemException
-import com.google.gson.*
-import android.app.Activity
-import android.util.Log
 
 class FlutterKinSdkPlugin(private var activity: Activity, private var context: Context) : MethodCallHandler {
 
-    var kinInit = false
+    var isKinInit = false
 
     private var balanceObserver = object : Observer<Balance>() {
         override fun onChanged(p0: Balance?) {
@@ -68,31 +67,38 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     override fun onMethodCall(call: MethodCall, result: Result) {
         when {
             call.method == "kinStart" -> {
-                val token: String? = call.argument("token")
-                if (token == null) return
-                Kin.start(context, token, Environment.getProduction())
-                kinInit = true
-                Kin.addBalanceObserver(balanceObserver)
+                val token: String = call.argument("token") ?: return
+                Kin.start(context, token, Environment.getProduction(), object : KinCallback<Void> {
+                    override fun onFailure(error: KinEcosystemException?) {
+                        isKinInit = false
+                        sendError("kinStart", error)
+                    }
+
+                    override fun onResponse(response: Void?) {
+                        isKinInit = true
+                        sendReport("kinStart", true, "Kin started")                       
+                    }
+                })
             }
-            call.method == "launchKinMarket" -> Kin.launchMarketplace(activity)
-            call.method == "getWallet" -> result.success(Kin.getPublicAddress())
+            call.method == "initBalanceObserver" -> if (ifKinInit()) Kin.addBalanceObserver(balanceObserver)
+            call.method == "launchKinMarket" -> if (ifKinInit()) Kin.launchMarketplace(activity)
+            call.method == "getWallet" -> if (ifKinInit()) result.success(Kin.getPublicAddress())
             call.method == "kinEarn" -> {
-                println("kinEarn start")
+                if (!ifKinInit()) return
                 val jwt: String? = call.argument("jwt")
-                kinEarn(jwt!!)
+                if (jwt != null) kinEarn(jwt)
             }
             call.method == "kinSpend" -> {
                 val jwt: String? = call.argument("jwt")
-                kinSpend(jwt!!)
+                if (jwt != null) kinSpend(jwt)
             }
             call.method == "kinPayToUser" -> {
-                println("🔥 in kotlin file")
                 val jwt: String? = call.argument("jwt")
-                kinPayToUser(jwt!!)
+                if (jwt != null) kinPayToUser(jwt)
             }
             call.method == "orderConfirmation" -> {
                 val offerId: String? = call.argument("offerId")
-                orderConfirmation(offerId!!)
+                if (offerId != null) orderConfirmation(offerId)
             }
             else -> result.notImplemented()
         }
@@ -102,7 +108,8 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             Kin.requestPayment(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
-                    sendReport("kinEarn", false, p0.toString())
+                    //sendReport("kinEarn", false, p0.toString())
+                    sendError("kinEarn", p0)
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
@@ -110,6 +117,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 }
             })
         } catch (e: Throwable) {
+            sendError("kinEarn", e)
         }
     }
 
@@ -117,7 +125,8 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             Kin.purchase(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
-                    sendReport("kinSpend", false, p0.toString())
+                    //sendReport("kinSpend", false, p0.toString())
+                    sendError("kinSpend", p0)
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
@@ -125,16 +134,16 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 }
             })
         } catch (e: Throwable) {
-
+            sendError("kinSpend", e)
         }
     }
-
 
     private fun kinPayToUser(jwt: String) {
         try {
             Kin.payToUser(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
-                    sendReport("kinPayToUser", false, p0.toString())
+                    //sendReport("kinPayToUser", false, p0.toString())
+                    sendError("kinPayToUser", p0)
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
@@ -142,34 +151,62 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 }
             })
         } catch (e: Throwable) {
-            println("🔥" + e.toString())
+            sendError("kinPayToUser", e)
         }
 
     }
 
-    fun orderConfirmation(offerId: String) {
+    private fun orderConfirmation(offerId: String) {
         try {
             Kin.getOrderConfirmation(offerId, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
-                    sendReport("orderConfirmation", false, p0.toString())
+                    //sendReport("orderConfirmation", false, p0.toString())
+                    sendError("orderConfirmation", p0)
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
                     sendReport("orderConfirmation", true, p0.toString())
                 }
             })
-        } catch (e: Throwable) {
-
+        } catch (e: Exception) {
+            sendError("orderConfirmation", e)
         }
     }
 
-    fun sendReport(type: String, status: Boolean, message: String) {
-        println("sendReport")
-        val info: Info = Info(type, status, message)
-        val gson = Gson()
-        val jsonInfo = gson.toJson(info)
-        infoCallback?.success(jsonInfo.toString())
+    private fun sendReport(type: String, status: Boolean, message: String) {
+        val info = Info(type, status, message)
+        var jsonInfo: String? = null
+        try {
+            jsonInfo = Gson().toJson(info)
+        } catch (e: Throwable) {
+            sendError("json", e)
+        }
+        if (jsonInfo != null) infoCallback?.success(jsonInfo)
+    }
+
+    private fun sendError(type: String, error: Throwable) {
+        val err = Error(type, error.localizedMessage)
+        var message: String? = error.message
+        if (message == null) message = ""
+        sendError(message, error.localizedMessage, err)
+    }
+
+    private fun sendError(type: String, error: KinEcosystemException?) {
+        if (error == null) return
+        val err = Error(type, error.localizedMessage)
+        sendError(error.code.toString(), error.localizedMessage, err)
+    }
+
+    private fun sendError(code: String, message: String?, details: Error) {
+        infoCallback?.error(code, message, details)
+    }
+
+    private fun ifKinInit(): Boolean {
+        val err = Error("kinStart", "Kin SDK not started")
+        sendError("0", "Kin SDK not started", err)
+        return isKinInit
     }
 
     data class Info(val type: String, val status: Boolean, val message: String)
+    data class Error(val type: String, val message: String)
 }

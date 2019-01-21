@@ -27,6 +27,8 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             } catch {
                 print(error)
             }
+        }
+        if(call.method.elementsEqual("initBalanceObserver")){
             do {
                 _ = try Kin.shared.addBalanceObserver { balance in
                     let intBalance = (balance.amount as NSDecimalNumber).intValue
