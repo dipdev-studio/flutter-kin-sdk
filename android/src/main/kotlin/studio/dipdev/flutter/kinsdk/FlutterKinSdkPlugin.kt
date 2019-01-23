@@ -175,13 +175,13 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     private fun sendReport(type: String, status: Boolean, message: String) {
         val info = Info(type, status, message)
-        var jsonInfo: String? = null
+        var json: String? = null
         try {
-            jsonInfo = Gson().toJson(info)
+            json = Gson().toJson(info)
         } catch (e: Throwable) {
             sendError("json", e)
         }
-        if (jsonInfo != null) infoCallback?.success(jsonInfo)
+        if (json != null) infoCallback?.success(json)
     }
 
     private fun sendError(type: String, error: Throwable) {
@@ -198,7 +198,13 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     }
 
     private fun sendError(code: String, message: String?, details: Error) {
-        infoCallback?.error(code, message, details)
+         var json: String? = null
+        try {
+            json = Gson().toJson(details)
+        } catch (e: Throwable) {
+            sendError("json", e)
+        }
+        if (json != null) infoCallback?.error(code, message, json)
     }
 
     private fun ifKinInit(): Boolean {
