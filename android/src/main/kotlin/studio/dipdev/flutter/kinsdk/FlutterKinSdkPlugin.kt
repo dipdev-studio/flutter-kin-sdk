@@ -68,6 +68,9 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         when {
             call.method == "kinStart" -> {
                 val token: String = call.argument("token") ?: return
+                //Kin.start(context, token, Environment.getProduction())
+                //isKinInit = true
+                //sendReport("kinStart", true, "Kin started")        
                 Kin.start(context, token, Environment.getProduction(), object : KinCallback<Void> {
                     override fun onFailure(error: KinEcosystemException?) {
                         isKinInit = false
@@ -209,7 +212,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     private fun ifKinInit(): Boolean {
         val err = Error("kinStart", "Kin SDK not started")
-        sendError("0", "Kin SDK not started", err)
+        sendError("-1", "Kin SDK not started", err)
         return isKinInit
     }
 
