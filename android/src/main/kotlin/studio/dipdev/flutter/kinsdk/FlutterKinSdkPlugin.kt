@@ -107,8 +107,6 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                         sendReport("kinStart", true, "Kin started")
                     }
                 })
-                isKinInit = true
-                sendReport("kinStart", true, "Kin started")
             }
             call.method == "initBalanceObserver" -> if (ifKinInit()) Kin.addBalanceObserver(balanceObserver)
             call.method == "launchKinMarket" -> if (ifKinInit()) Kin.launchMarketplace(activity)
@@ -237,9 +235,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         if (json != null) infoCallback?.error(code, message, json)
     }
 
-    private fun ifKinInit(): Boolean {
-        val err = Error("kinStart", "Kin SDK not started")
-        sendError("-1", "Kin SDK not started", err)
+    private fun ifKinInit(): Boolean {        
+        if(!isKinInit) {
+            val err = Error("kinStart", "Kin SDK not started")
+            sendError("-1", "Kin SDK not started", err)
+        }
         return isKinInit
     }
 
