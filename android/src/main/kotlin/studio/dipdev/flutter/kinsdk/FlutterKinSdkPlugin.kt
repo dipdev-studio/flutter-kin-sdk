@@ -17,7 +17,6 @@ import kin.devplatform.base.Observer
 import kin.devplatform.data.model.Balance
 import kin.devplatform.data.model.OrderConfirmation
 import kin.devplatform.exception.KinEcosystemException
-import org.omg.CORBA.Environment
 
 
 class FlutterKinSdkPlugin(private var activity: Activity, private var context: Context) : MethodCallHandler {
@@ -90,146 +89,146 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
                     override fun onError(e: java.lang.Exception?) {
                         isKinInit = false
-                        sendError("kinStart", error)
+                        if (e != null) sendError("kinStart", e)
                     }
 
                     override fun onStart() {
                     }
                 })
-
-                call.method == "initBalanceObserver" -> if (ifKinInit()) Kin.addBalanceObserver(balanceObserver)
-                call.method == "launchKinMarket" -> if (ifKinInit()) Kin.launchMarketplace(activity)
-                call.method == "getWallet" -> if (ifKinInit()) result.success(Kin.getPublicAddress())
-                call.method == "kinEarn" -> {
-                    if (!ifKinInit()) return
-                    val jwt: String? = call.argument("jwt")
-                    if (jwt != null) kinEarn(jwt)
-                }
-                call.method == "kinSpend" -> {
-                    val jwt: String? = call.argument("jwt")
-                    if (jwt != null) kinSpend(jwt)
-                }
-                call.method == "kinPayToUser" -> {
-                    val jwt: String? = call.argument("jwt")
-                    if (jwt != null) kinPayToUser(jwt)
-                }
-                call.method == "orderConfirmation" -> {
-                    val offerId: String? = call.argument("offerId")
-                    if (offerId != null) orderConfirmation(offerId)
-                }
-                else -> result.notImplemented()
             }
-        }
-
-        private fun kinEarn(jwt: String) {
-            try {
-                Kin.requestPayment(jwt, object : KinCallback<OrderConfirmation> {
-                    override fun onFailure(p0: KinEcosystemException?) {
-                        //sendReport("kinEarn", false, p0.toString())
-                        sendError("kinEarn", p0)
-                    }
-
-                    override fun onResponse(p0: OrderConfirmation?) {
-                        sendReport("kinEarn", true, p0.toString())
-                    }
-                })
-            } catch (e: Throwable) {
-                sendError("kinEarn", e)
+            call.method == "initBalanceObserver" -> if (ifKinInit()) Kin.addBalanceObserver(balanceObserver)
+            call.method == "launchKinMarket" -> if (ifKinInit()) Kin.launchMarketplace(activity)
+            call.method == "getWallet" -> if (ifKinInit()) result.success(Kin.getPublicAddress())
+            call.method == "kinEarn" -> {
+                if (!ifKinInit()) return
+                val jwt: String? = call.argument("jwt")
+                if (jwt != null) kinEarn(jwt)
             }
-        }
-
-        private fun kinSpend(jwt: String) {
-            try {
-                Kin.purchase(jwt, object : KinCallback<OrderConfirmation> {
-                    override fun onFailure(p0: KinEcosystemException?) {
-                        //sendReport("kinSpend", false, p0.toString())
-                        sendError("kinSpend", p0)
-                    }
-
-                    override fun onResponse(p0: OrderConfirmation?) {
-                        sendReport("kinSpend", true, p0.toString())
-                    }
-                })
-            } catch (e: Throwable) {
-                sendError("kinSpend", e)
+            call.method == "kinSpend" -> {
+                val jwt: String? = call.argument("jwt")
+                if (jwt != null) kinSpend(jwt)
             }
-        }
-
-        private fun kinPayToUser(jwt: String) {
-            try {
-                Kin.payToUser(jwt, object : KinCallback<OrderConfirmation> {
-                    override fun onFailure(p0: KinEcosystemException?) {
-                        //sendReport("kinPayToUser", false, p0.toString())
-                        sendError("kinPayToUser", p0)
-                    }
-
-                    override fun onResponse(p0: OrderConfirmation?) {
-                        sendReport("kinPayToUser", true, p0.toString())
-                    }
-                })
-            } catch (e: Throwable) {
-                sendError("kinPayToUser", e)
+            call.method == "kinPayToUser" -> {
+                val jwt: String? = call.argument("jwt")
+                if (jwt != null) kinPayToUser(jwt)
             }
-
-        }
-
-        private fun orderConfirmation(offerId: String) {
-            try {
-                Kin.getOrderConfirmation(offerId, object : KinCallback<OrderConfirmation> {
-                    override fun onFailure(p0: KinEcosystemException?) {
-                        //sendReport("orderConfirmation", false, p0.toString())
-                        sendError("orderConfirmation", p0)
-                    }
-
-                    override fun onResponse(p0: OrderConfirmation?) {
-                        sendReport("orderConfirmation", true, p0.toString())
-                    }
-                })
-            } catch (e: Exception) {
-                sendError("orderConfirmation", e)
+            call.method == "orderConfirmation" -> {
+                val offerId: String? = call.argument("offerId")
+                if (offerId != null) orderConfirmation(offerId)
             }
+            else -> result.notImplemented()
         }
-
-        private fun sendReport(type: String, status: Boolean, message: String) {
-            val info = Info(type, status, message)
-            var json: String? = null
-            try {
-                json = Gson().toJson(info)
-            } catch (e: Throwable) {
-                sendError("json", e)
-            }
-            if (json != null) infoCallback?.success(json)
-        }
-
-        private fun sendError(type: String, error: Throwable) {
-            val err = Error(type, error.localizedMessage)
-            var message: String? = error.message
-            if (message == null) message = ""
-            sendError(message, error.localizedMessage, err)
-        }
-
-        private fun sendError(type: String, error: KinEcosystemException?) {
-            if (error == null) return
-            val err = Error(type, error.localizedMessage)
-            sendError(error.code.toString(), error.localizedMessage, err)
-        }
-
-        private fun sendError(code: String, message: String?, details: Error) {
-            var json: String? = null
-            try {
-                json = Gson().toJson(details)
-            } catch (e: Throwable) {
-                sendError("json", e)
-            }
-            if (json != null) infoCallback?.error(code, message, json)
-        }
-
-        private fun ifKinInit(): Boolean {
-            val err = Error("kinStart", "Kin SDK not started")
-            sendError("-1", "Kin SDK not started", err)
-            return isKinInit
-        }
-
-        data class Info(val type: String, val status: Boolean, val message: String)
-        data class Error(val type: String, val message: String)
     }
+
+    private fun kinEarn(jwt: String) {
+        try {
+            Kin.requestPayment(jwt, object : KinCallback<OrderConfirmation> {
+                override fun onFailure(p0: KinEcosystemException?) {
+                    //sendReport("kinEarn", false, p0.toString())
+                    sendError("kinEarn", p0)
+                }
+
+                override fun onResponse(p0: OrderConfirmation?) {
+                    sendReport("kinEarn", true, p0.toString())
+                }
+            })
+        } catch (e: Throwable) {
+            sendError("kinEarn", e)
+        }
+    }
+
+    private fun kinSpend(jwt: String) {
+        try {
+            Kin.purchase(jwt, object : KinCallback<OrderConfirmation> {
+                override fun onFailure(p0: KinEcosystemException?) {
+                    //sendReport("kinSpend", false, p0.toString())
+                    sendError("kinSpend", p0)
+                }
+
+                override fun onResponse(p0: OrderConfirmation?) {
+                    sendReport("kinSpend", true, p0.toString())
+                }
+            })
+        } catch (e: Throwable) {
+            sendError("kinSpend", e)
+        }
+    }
+
+    private fun kinPayToUser(jwt: String) {
+        try {
+            Kin.payToUser(jwt, object : KinCallback<OrderConfirmation> {
+                override fun onFailure(p0: KinEcosystemException?) {
+                    //sendReport("kinPayToUser", false, p0.toString())
+                    sendError("kinPayToUser", p0)
+                }
+
+                override fun onResponse(p0: OrderConfirmation?) {
+                    sendReport("kinPayToUser", true, p0.toString())
+                }
+            })
+        } catch (e: Throwable) {
+            sendError("kinPayToUser", e)
+        }
+
+    }
+
+    private fun orderConfirmation(offerId: String) {
+        try {
+            Kin.getOrderConfirmation(offerId, object : KinCallback<OrderConfirmation> {
+                override fun onFailure(p0: KinEcosystemException?) {
+                    //sendReport("orderConfirmation", false, p0.toString())
+                    sendError("orderConfirmation", p0)
+                }
+
+                override fun onResponse(p0: OrderConfirmation?) {
+                    sendReport("orderConfirmation", true, p0.toString())
+                }
+            })
+        } catch (e: Exception) {
+            sendError("orderConfirmation", e)
+        }
+    }
+
+    private fun sendReport(type: String, status: Boolean, message: String) {
+        val info = Info(type, status, message)
+        var json: String? = null
+        try {
+            json = Gson().toJson(info)
+        } catch (e: Throwable) {
+            sendError("json", e)
+        }
+        if (json != null) infoCallback?.success(json)
+    }
+
+    private fun sendError(type: String, error: Throwable) {
+        val err = Error(type, error.localizedMessage)
+        var message: String? = error.message
+        if (message == null) message = ""
+        sendError(message, error.localizedMessage, err)
+    }
+
+    private fun sendError(type: String, error: KinEcosystemException?) {
+        if (error == null) return
+        val err = Error(type, error.localizedMessage)
+        sendError(error.code.toString(), error.localizedMessage, err)
+    }
+
+    private fun sendError(code: String, message: String?, details: Error) {
+        var json: String? = null
+        try {
+            json = Gson().toJson(details)
+        } catch (e: Throwable) {
+            sendError("json", e)
+        }
+        if (json != null) infoCallback?.error(code, message, json)
+    }
+
+    private fun ifKinInit(): Boolean {
+        val err = Error("kinStart", "Kin SDK not started")
+        sendError("-1", "Kin SDK not started", err)
+        return isKinInit
+    }
+
+    data class Info(val type: String, val status: Boolean, val message: String)
+    data class Error(val type: String, val message: String)
+}
