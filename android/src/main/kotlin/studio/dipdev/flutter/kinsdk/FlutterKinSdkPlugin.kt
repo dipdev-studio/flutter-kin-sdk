@@ -12,7 +12,7 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import kin.devplatform.Environment
 import kin.devplatform.Kin
 import kin.devplatform.KinCallback
-import kin.devplatform.KinMigrationListener
+//import kin.devplatform.KinMigrationListener
 import kin.devplatform.base.Observer
 import kin.devplatform.data.model.Balance
 import kin.devplatform.data.model.OrderConfirmation
@@ -71,7 +71,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             call.method == "kinStart" -> {
                 val token: String = call.argument("token") ?: return
 
-                Kin.start(context, token, Environment.getProduction(), object : KinCallback<Void> {
+                /*Kin.start(context, token, Environment.getProduction(), object : KinCallback<Void> {
                     override fun onFailure(error: KinEcosystemException?) {
                         isKinInit = false
                         sendError("kinStart", error)
@@ -88,13 +88,27 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                     }
 
                     override fun onError(e: java.lang.Exception?) {
-                        isKinInit = false
-                        if (e != null) sendError("kinStart", e)
+                        //isKinInit = false
+                        //if (e != null) sendError("kinStart", e)
                     }
 
                     override fun onStart() {
                     }
+                })*/
+
+                Kin.start(context, token, Environment.getProduction(), object : KinCallback<Void> {
+                    override fun onFailure(error: KinEcosystemException?) {
+                        isKinInit = false
+                        sendError("kinStart", error)
+                    }
+
+                    override fun onResponse(response: Void?) {
+                        isKinInit = true
+                        sendReport("kinStart", true, "Kin started")
+                    }
                 })
+                isKinInit = true
+                sendReport("kinStart", true, "Kin started")
             }
             call.method == "initBalanceObserver" -> if (ifKinInit()) Kin.addBalanceObserver(balanceObserver)
             call.method == "launchKinMarket" -> if (ifKinInit()) Kin.launchMarketplace(activity)

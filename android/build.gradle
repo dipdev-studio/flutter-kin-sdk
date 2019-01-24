@@ -40,6 +40,6 @@ android {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'com.github.kinecosystem:kin-devplatform-android:1.1'
+    implementation 'com.github.kinecosystem:kin-devplatform-android:0.9.1'
     implementation 'com.google.code.gson:gson:2.8.5'
 }
