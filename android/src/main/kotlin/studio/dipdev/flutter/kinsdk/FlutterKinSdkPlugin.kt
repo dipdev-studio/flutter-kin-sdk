@@ -12,6 +12,7 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import kin.devplatform.Environment
 import kin.devplatform.Kin
 import kin.devplatform.KinCallback
+import kin.devplatform.KinMigrationListener
 import kin.devplatform.base.Observer
 import kin.devplatform.data.model.Balance
 import kin.devplatform.data.model.OrderConfirmation
@@ -70,6 +71,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         when {
             call.method == "kinStart" -> {
                 val token: String = call.argument("token") ?: return
+
                 Kin.start(context, token, Environment.getProduction(), object : KinCallback<Void> {
                     override fun onFailure(error: KinEcosystemException?) {
                         isKinInit = false
@@ -80,19 +82,21 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                         isKinInit = true
                         sendReport("kinStart", true, "Kin started")
                     }
-                }, object : KinMigrationListener() {
-                    fun onStart() {
-                        // The user migration has started.
+                }, object : KinMigrationListener {
+                    override fun onFinish() {
+                        isKinInit = true
+                        sendReport("kinStart", true, "Kin started")
                     }
 
-                    fun onFinish() {
-                        // The user migration was completed successfully.
+                    override fun onError(e: java.lang.Exception?) {
+                        isKinInit = false
+                        sendError("kinStart", error)
                     }
 
-                    fun onError(e: Exception) {
-                        // The user migration has failed.
+                    override fun onStart() {
                     }
                 })
+
                 call.method == "initBalanceObserver" -> if (ifKinInit()) Kin.addBalanceObserver(balanceObserver)
                 call.method == "launchKinMarket" -> if (ifKinInit()) Kin.launchMarketplace(activity)
                 call.method == "getWallet" -> if (ifKinInit()) result.success(Kin.getPublicAddress())
