@@ -1,3 +1,3 @@
 ## 0.0.1
 
-* TODO: Describe initial release.
+ - Init with all functional for Android and IOS

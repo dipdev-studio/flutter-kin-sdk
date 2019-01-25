@@ -1,5 +1,5 @@
 name: flutter_kin_sdk
-description: A flutter Kin SDK plugin.
+description: A flutter Kin SDK plugin to use offers features and launch Kin Marketplace.
 version: 0.0.1
 author: DipDev Studio <info@dipdev.studio>
 homepage: https://git.dipdev.studio/open-source/flutter/kin_sdk
