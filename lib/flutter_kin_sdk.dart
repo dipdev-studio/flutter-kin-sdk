@@ -22,19 +22,16 @@ class FlutterKinSdk {
     return _streamInfo;
   }
 
-  static Future kinStart(String token, balanceObserver) async {
+  static Future kinStart(String token, bool initBalanceObserver) async {
     final Map<String, dynamic> params = <String, dynamic>{
       'token': token,
+      'initBalanceObserver': initBalanceObserver,
     };
     await _methodChannel.invokeMethod('kinStart', params);
   }
 
   static Future launchKinMarket() async {
     await _methodChannel.invokeMethod('launchKinMarket');
-  }
-
-  static Future initBalanceObserver() async {
-    await _methodChannel.invokeMethod('initBalanceObserver');
   }
 
   static Future kinEarn(String jwt) async {
