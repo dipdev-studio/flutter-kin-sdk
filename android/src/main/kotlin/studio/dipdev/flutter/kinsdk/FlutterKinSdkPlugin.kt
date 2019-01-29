@@ -12,6 +12,7 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import kin.devplatform.Environment
 import kin.devplatform.Kin
 import kin.devplatform.KinCallback
+import kin.devplatform.KinEnvironment
 //import kin.devplatform.KinMigrationListener
 import kin.devplatform.base.Observer
 import kin.devplatform.data.model.Balance
@@ -71,6 +72,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             call.method == "kinStart" -> {
                 val token: String = call.argument("token") ?: return
                 val initBalanceObserver: Boolean = call.argument("initBalanceObserver") ?: return
+                val isProduction: Boolean = call.argument("isProduction") ?: return
 
                 /*Kin.start(context, token, Environment.getProduction(), object : KinCallback<Void> {
                     override fun onFailure(error: KinEcosystemException?) {
@@ -97,7 +99,12 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                     }
                 })*/
 
-                Kin.start(context, token, Environment.getProduction(), object : KinCallback<Void> {
+                val environment: KinEnvironment = if (isProduction){
+                    Environment.getProduction()
+                }else{
+                    Environment.getPlayground()
+                }
+                Kin.start(context, token, environment, object : KinCallback<Void> {
                     override fun onFailure(error: KinEcosystemException?) {
                         isKinInit = false
                         sendError("kinStart", error)

@@ -24,9 +24,16 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             let arguments = call.arguments as? NSDictionary
             let token = arguments!["token"] as? String
             let initBalanceObserver = arguments!["initBalanceObserver"] as? Bool
-            if (token == nil || initBalanceObserver == nil) {return}
+            let isProduction = arguments!["isProduction"] as? Bool
+            if (token == nil || initBalanceObserver == nil || isProduction == nil) {return}
+            let environment : Environment
+            if (isProduction!){
+                environment = .production
+            }else{
+                environment = .playground
+            }
             do {
-                try Kin.shared.start(userId: "myUserId", jwt: token, environment: .playground)
+                try Kin.shared.start(userId: "myUserId", jwt: token, environment: environment)
                 isKinInit = true
                 if (initBalanceObserver!){
                     do {
