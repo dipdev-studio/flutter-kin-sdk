@@ -10,7 +10,7 @@ To use this plugin, add `flutter_kin_sdk` as a [dependency in your pubspec.yaml 
 
 ```yaml
 dependencies:
-  flutter_kin_sdk: '^0.0.1'
+  flutter_kin_sdk: '^0.1.2'
 ```
 
 ### Initializing
@@ -20,7 +20,8 @@ import 'package:flutter_kin_sdk/flutter_kin_sdk.dart';
 
 // Generate jwt_token and all jwt by yourself and setting in the plugin to have a response
 // true - initializing balance observer
-await FlutterKinSdk.kinStart(jwt_token, true);
+// true - production mode (false - playground)
+await FlutterKinSdk.kinStart(jwt_token, true, true);
 ```
 
 ### Receivers

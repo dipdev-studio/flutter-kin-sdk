@@ -5,6 +5,7 @@ import KinDevPlatform
 public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     var isKinInit: Bool = false
+    var balance: Int = 0
     
     static let balanceFlutterController = FlutterStreamController()
     static let infoFlutterController = FlutterStreamController()
@@ -34,12 +35,13 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             }
             do {
                 try Kin.shared.start(userId: "myUserId", jwt: token, environment: environment)
+                sendReport(type: "kinStart", message: "Kin started")
                 isKinInit = true
                 if (initBalanceObserver!){
                     do {
-                        _ = try Kin.shared.addBalanceObserver { balance in
-                            let intBalance = (balance.amount as NSDecimalNumber).intValue
-                            SwiftFlutterKinSdkPlugin.balanceFlutterController.eventCallback?(intBalance)
+                        _ = try Kin.shared.addBalanceObserver { kinBalance in
+                            self.balance = (kinBalance.amount as NSDecimalNumber).intValue
+                            SwiftFlutterKinSdkPlugin.balanceFlutterController.eventCallback?(self.balance)
                         }
                     } catch {
                         self.sendError(type: "balanceObserver", error: error)
@@ -84,9 +86,10 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     }
     
     private func kinEarn(jwt : String){
+        let prevBalance = balance
         _ = Kin.shared.purchase(offerJWT: jwt) { jwtConfirmation, error in
             if jwtConfirmation != nil {
-                self.sendReport(type: "kinEarn", message: String(describing: jwtConfirmation))
+                self.sendReport(type: "kinEarn", message: String(describing: jwtConfirmation), amount: self.balance - prevBalance)
             } else if let e = error {
                 self.sendError(type: "kinEarn", error: e)
             }
@@ -115,8 +118,13 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func sendReport(type: String, message: String){
-        let info = Info(type: type, message: message)
+    private func sendReport(type: String, message: String, amount: Int? = nil){
+        var info: Info
+        if (amount != nil){
+            info = Info(type: type, message: message, amount: amount)
+        }else{
+            info = Info(type: type, message: message)
+        }
         let encoder = JSONEncoder()
         var data: Data? = nil
         do {
@@ -177,6 +185,12 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     struct Info:Encodable {
         let type: String
         let message: String
+        let amount: Int?
+        init(type: String, message: String, amount: Int? = nil) {
+            self.type = type
+            self.message = message
+            self.amount = amount
+        }
     }
     
     struct PluginError:Encodable {

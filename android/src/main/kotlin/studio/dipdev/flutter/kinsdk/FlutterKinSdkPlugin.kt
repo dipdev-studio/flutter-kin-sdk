@@ -23,11 +23,13 @@ import kin.devplatform.exception.KinEcosystemException
 class FlutterKinSdkPlugin(private var activity: Activity, private var context: Context) : MethodCallHandler {
 
     var isKinInit = false
+    var balance: Long = 0
 
     private var balanceObserver = object : Observer<Balance>() {
         override fun onChanged(p0: Balance?) {
             if (p0 != null) {
-                balanceCallback?.success(p0.amount.longValueExact())
+                balance = p0.amount.longValueExact()
+                balanceCallback?.success(balance)
             }
         }
     }
@@ -150,6 +152,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     }
 
     private fun kinEarn(jwt: String) {
+        var prevBalance = balance
         try {
             Kin.requestPayment(jwt, object : KinCallback<OrderConfirmation> {
                 override fun onFailure(p0: KinEcosystemException?) {
@@ -157,7 +160,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 }
 
                 override fun onResponse(p0: OrderConfirmation?) {
-                    sendReport("kinEarn", p0.toString())
+                    sendReport("kinEarn", p0.toString(), balance - prevBalance)
                 }
             })
         } catch (e: Throwable) {
@@ -214,8 +217,12 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         }
     }
 
-    private fun sendReport(type: String, message: String) {
-        val info = Info(type, message)
+    private fun sendReport(type: String, message: String, amount: Long? = null) {
+        val info : Info
+        if (amount != null)
+            info = Info(type, message, amount)
+        else
+            info = Info(type, message)
         var json: String? = null
         try {
             json = Gson().toJson(info)
@@ -256,6 +263,6 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         return isKinInit
     }
 
-    data class Info(val type: String, val message: String)
+    data class Info(val type: String, val message: String, val amount: Long? = null)
     data class Error(val type: String, val message: String)
 }

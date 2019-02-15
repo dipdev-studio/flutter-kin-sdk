@@ -22,7 +22,8 @@ class FlutterKinSdk {
     return _streamInfo;
   }
 
-  static Future kinStart(String token, bool initBalanceObserver, bool isProduction) async {
+  static Future kinStart(
+      String token, bool initBalanceObserver, bool isProduction) async {
     final Map<String, dynamic> params = <String, dynamic>{
       'token': token,
       'initBalanceObserver': initBalanceObserver,
