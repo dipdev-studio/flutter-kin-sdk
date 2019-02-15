@@ -5,7 +5,9 @@ import KinDevPlatform
 public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     var isKinInit: Bool = false
-    var balance: Int = 0
+    var currentBalance: Int = 0
+    var isMigrationStarted: Bool = false
+    var initBalanceObserver: Bool?
     
     static let balanceFlutterController = FlutterStreamController()
     static let infoFlutterController = FlutterStreamController()
@@ -24,29 +26,24 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         if(call.method.elementsEqual("kinStart")){
             let arguments = call.arguments as? NSDictionary
             let token = arguments!["token"] as? String
+            let userId = arguments!["userId"] as? String
+            let appId = arguments!["appId"] as? String
             let initBalanceObserver = arguments!["initBalanceObserver"] as? Bool
             let isProduction = arguments!["isProduction"] as? Bool
-            if (token == nil || initBalanceObserver == nil || isProduction == nil) {return}
+            if (token == nil || userId == nil || appId == nil || initBalanceObserver == nil || isProduction == nil) {return}
             let environment : Environment
             if (isProduction!){
                 environment = .production
             }else{
                 environment = .playground
             }
+            Kin.shared.migrationDelegate = self
+            if (isMigrationStarted) {return}
             do {
-                try Kin.shared.start(userId: "myUserId", jwt: token, environment: environment)
+                try Kin.shared.start(userId: userId!, appId: appId!, jwt: token, environment: environment)
                 sendReport(type: "kinStart", message: "Kin started")
                 isKinInit = true
-                if (initBalanceObserver!){
-                    do {
-                        _ = try Kin.shared.addBalanceObserver { kinBalance in
-                            self.balance = (kinBalance.amount as NSDecimalNumber).intValue
-                            SwiftFlutterKinSdkPlugin.balanceFlutterController.eventCallback?(self.balance)
-                        }
-                    } catch {
-                        self.sendError(type: "balanceObserver", error: error)
-                    }
-                }
+                initializeBalanceObserver(initBalanceObserver: initBalanceObserver!)
             } catch {
                 isKinInit = false
                 sendError(type: "kinStart", error: error)
@@ -84,28 +81,40 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             sendError(code: "-2", message: "Kin SDK iOS doesn't support function orderConfirmation.", details: err)
         }
     }
-    
-    private func kinEarn(jwt : String){
-        let prevBalance = balance
-        _ = Kin.shared.purchase(offerJWT: jwt) { jwtConfirmation, error in
-            if jwtConfirmation != nil {
-                self.sendReport(type: "kinEarn", message: String(describing: jwtConfirmation), amount: self.balance - prevBalance)
-            } else if let e = error {
-                self.sendError(type: "kinEarn", error: e)
+
+    private func initializeBalanceObserver(initBalanceObserver: Bool){
+        if (initBalanceObserver){
+            do {
+                _ = try Kin.shared.addBalanceObserver { kinBalance in
+                    self.currentBalance = (kinBalance.amount as NSDecimalNumber).intValue
+                    SwiftFlutterKinSdkPlugin.balanceFlutterController.eventCallback?(self.currentBalance)
+                }
+            } catch {
+                self.sendError(type: "balanceObserver", error: error)
             }
         }
     }
     
-    private func kinSpend(jwt : String){
+    private func kinEarn(jwt : String){
+        let prevBalance = currentBalance
         let handler: ExternalOfferCallback = { jwtConfirmation, error in
-            _ = UIAlertController(title: nil, message: nil, preferredStyle: .alert)
+            if jwtConfirmation != nil {
+                self.sendReport(type: "kinEarn", message: String(describing: jwtConfirmation), amount: self.currentBalance - prevBalance)
+            } else if let e = error {
+                self.sendError(type: "kinEarn", error: e)
+            }
+        }
+        _ = Kin.shared.requestPayment(offerJWT: jwt, completion: handler)
+    }
+    
+    private func kinSpend(jwt : String){
+        _ = Kin.shared.purchase(offerJWT: jwt) { jwtConfirmation, error in
             if jwtConfirmation != nil {
                 self.sendReport(type: "kinSpend", message: String(describing: jwtConfirmation))
             } else if let e = error {
                 self.sendError(type: "kinSpend", error: e)
             }
         }
-        _ = Kin.shared.requestPayment(offerJWT: jwt, completion: handler)
     }
     
     private func kinPayToUser(jwt : String){
@@ -196,5 +205,26 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     struct PluginError:Encodable {
         let type: String
         let message: String
+    }
+}
+
+extension SwiftFlutterKinSdkPlugin: KinMigrationDelegate {
+    public func kinMigrationDidStart() {
+        isMigrationStarted = true
+        sendReport(type: "kinMigration", message: "Migration started")
+    }
+    
+    public func kinMigrationDidFinish() {
+        isMigrationStarted = false
+        sendReport(type: "kinMigration", message: "Migration finished")
+        initializeBalanceObserver(initBalanceObserver: initBalanceObserver!)
+    }
+    
+    public func kinMigrationIsReady() {
+        sendReport(type: "kinMigration", message: "Migration ready")
+    }
+    
+    public func kinMigration(error: Error) {
+        self.sendError(type: "kinEarn", error: error)
     }
 }

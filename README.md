@@ -10,7 +10,7 @@ To use this plugin, add `flutter_kin_sdk` as a [dependency in your pubspec.yaml 
 
 ```yaml
 dependencies:
-  flutter_kin_sdk: '^0.1.2'
+  flutter_kin_sdk: '^0.1.3'
 ```
 
 ### Initializing

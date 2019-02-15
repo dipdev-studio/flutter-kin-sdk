@@ -6,6 +6,10 @@
 
  - Opportunity to choose between playground and production mode
 
- ## 0.1.2
+## 0.1.2
 
  - Returning amount of earn in Info json
+
+## 0.1.3
+
+ - iOS migration methods
