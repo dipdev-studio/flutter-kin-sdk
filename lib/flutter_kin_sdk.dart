@@ -8,12 +8,6 @@ class FlutterKinSdk {
   static const _stream = const EventChannel('flutter_kin_sdk_balance');
   static const _streamInfo = const EventChannel('flutter_kin_sdk_info');
 
-  static Future<String> get platformVersion async {
-    final String version =
-        await _methodChannel.invokeMethod('getPlatformVersion');
-    return version;
-  }
-
   static EventChannel get balanceStream {
     return _stream;
   }
@@ -22,47 +16,45 @@ class FlutterKinSdk {
     return _streamInfo;
   }
 
-  static Future kinStart(
-      String token, String userId, String appId, bool initBalanceObserver, bool isProduction) async {
+  static Future kinInit({int accountNum = 0, bool isTest = false}) async {
     final Map<String, dynamic> params = <String, dynamic>{
-      'token': token,
-      'userId': userId,
-      'appId': appId,
-      'initBalanceObserver': initBalanceObserver,
-      'isProduction': isProduction,
+      'isTest': isTest,
+      'accountNum': accountNum,
     };
-    await _methodChannel.invokeMethod('kinStart', params);
+    await _methodChannel.invokeMethod('kinInit', params);
   }
 
-  static Future launchKinMarket() async {
-    await _methodChannel.invokeMethod('launchKinMarket');
+  static Future getPublicAddress({int accountNum = 0}) async {
+    final Map<String, dynamic> params = <String, dynamic>{
+      'accountNum': accountNum,
+    };
+    await _methodChannel.invokeMethod('getPublicAddress', params);
   }
 
-  static Future kinEarn(String jwt) async {
+  static Future kinTransfer(String toAccountAddress, int amount, {int fromAccount = 0, String memo}) async {
     final Map<String, dynamic> params = <String, dynamic>{
-      'jwt': jwt,
+      'fromAccount': fromAccount,
+      'toAccountAddress': toAccountAddress,
+      'amount': amount,
+      'memo': memo,
     };
-    await _methodChannel.invokeMethod('kinEarn', params);
+    await _methodChannel.invokeMethod('kinTransfer', params);
   }
 
-  static Future kinSpend(String jwt) async {
+  static Future kinTransferToYourself(int fromAccount, int toAccount, int amount, {String memo}) async {
     final Map<String, dynamic> params = <String, dynamic>{
-      'jwt': jwt,
+      'fromAccount': fromAccount,
+      'toAccount': toAccount,
+      'amount': amount,
+      'memo': memo,
     };
-    await _methodChannel.invokeMethod('kinSpend', params);
+    await _methodChannel.invokeMethod('kinTransferToYourself', params);
   }
 
-  static Future kinPayToUser(String jwt) async {
+  static Future accountStateCheck(int accountNum) async {
     final Map<String, dynamic> params = <String, dynamic>{
-      'jwt': jwt,
+      'accountNum': accountNum,
     };
-    await _methodChannel.invokeMethod('kinPayToUser', params);
-  }
-
-  static Future orderConfirmation(String offerId) async {
-    final Map<String, dynamic> params = <String, dynamic>{
-      'offerId': offerId,
-    };
-    await _methodChannel.invokeMethod('orderConfirmation', params);
+    await _methodChannel.invokeMethod('accountStateCheck', params);
   }
 }
