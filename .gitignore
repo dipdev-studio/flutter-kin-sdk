@@ -12,3 +12,6 @@ example/android/.settings/org.eclipse.buildship.core.prefs
 android/.settings/org.eclipse.buildship.core.prefs
 android/.classpath
 android/.project
+example/ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+example/ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+example/ios/Runner.xcodeproj/project.pbxproj
