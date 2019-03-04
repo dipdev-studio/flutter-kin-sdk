@@ -1,13 +1,14 @@
 import Flutter
 import UIKit
-import KinDevPlatform
+import KinSDK
+import StellarKit
+import Foundation
+import KinUtil
 
 public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
-    var isKinInit: Bool = false
-    var currentBalance: Int = 0
-    var isMigrationStarted: Bool = false
-    var initBalanceObserver: Bool?
+    private var kinClient : KinClient?
+    private var isProduction : Bool?
     
     static let balanceFlutterController = FlutterStreamController()
     static let infoFlutterController = FlutterStreamController()
@@ -22,117 +23,423 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
     
+    
+    
+    
+    
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        if(call.method.elementsEqual("kinStart")){
+        if(call.method.elementsEqual("initKinClient")){
             let arguments = call.arguments as? NSDictionary
-            let token = arguments!["token"] as? String
-            let userId = arguments!["userId"] as? String
+            isProduction = arguments!["isProduction"] as? Bool
             let appId = arguments!["appId"] as? String
-            let initBalanceObserver = arguments!["initBalanceObserver"] as? Bool
-            let isProduction = arguments!["isProduction"] as? Bool
-            if (token == nil || userId == nil || appId == nil || initBalanceObserver == nil || isProduction == nil) {return}
-            let environment : Environment
-            if (isProduction!){
-                environment = .production
-            }else{
-                environment = .playground
+            if (isProduction == nil) {isProduction = false}
+            if(isProduction == true) {
+                sendError(code: "-8", type: "initKinClient", message: "Sorry, but the production network is not implemented in this version of plugin")
+                return
             }
-            Kin.shared.migrationDelegate = self
-            if (isMigrationStarted) {return}
-            do {
-                try Kin.shared.start(userId: userId!, appId: appId!, jwt: token, environment: environment)
-                sendReport(type: "kinStart", message: "Kin started")
-                isKinInit = true
-                initializeBalanceObserver(initBalanceObserver: initBalanceObserver!)
-            } catch {
-                isKinInit = false
-                sendError(type: "kinStart", error: error)
-            }
+            initKinClient(appId: appId)
+        } else {
+            if(!isKinClientInit()){return}
         }
-        if(call.method.elementsEqual("launchKinMarket")){
-            if (!ifKinInit()) {return}
-            let viewController = (UIApplication.shared.delegate?.window??.rootViewController)!;
-            Kin.shared.launchMarketplace(from: viewController)
+        if(call.method.elementsEqual("createAccount")){
+            createAccount()
         }
-        if(call.method.elementsEqual("getWallet")){
-            if (!ifKinInit()) {return}
-            result(Kin.shared.publicAddress)
+        if(call.method.elementsEqual("deleteAccount")){
+            
         }
-        if(call.method.elementsEqual("kinEarn")){
-            if (!ifKinInit()) {return}
-            let arguments = call.arguments as? NSDictionary
-            let jwt = arguments!["jwt"] as? String
-            kinEarn(jwt: jwt!)
+        if(call.method.elementsEqual("importAccount")){
+            
         }
-        if(call.method.elementsEqual("kinSpend")){
-            if (!ifKinInit()) {return}
-            let arguments = call.arguments as? NSDictionary
-            let jwt = arguments!["jwt"] as? String
-            kinSpend(jwt: jwt!)
+        if(call.method.elementsEqual("exportAccount")){
+            
         }
-        if(call.method.elementsEqual("kinPayToUser")){
-            if (!ifKinInit()) {return}
-            let arguments = call.arguments as? NSDictionary
-            let jwt = arguments!["jwt"] as? String
-            kinPayToUser(jwt: jwt!)
+        if(call.method.elementsEqual("getAccountBalance")){
+            
         }
-        if(call.method.elementsEqual("orderConfirmation")){
-            let err = PluginError(type: "orderConfirmation", message: "Kin SDK iOS doesn't support function orderConfirmation.")
-            sendError(code: "-2", message: "Kin SDK iOS doesn't support function orderConfirmation.", details: err)
+        if(call.method.elementsEqual("getAccountStatus")){
+            
         }
-    }
-
-    private func initializeBalanceObserver(initBalanceObserver: Bool){
-        if (initBalanceObserver){
-            do {
-                _ = try Kin.shared.addBalanceObserver { kinBalance in
-                    self.currentBalance = (kinBalance.amount as NSDecimalNumber).intValue
-                    SwiftFlutterKinSdkPlugin.balanceFlutterController.eventCallback?(self.currentBalance)
-                }
-            } catch {
-                self.sendError(type: "balanceObserver", error: error)
-            }
+        if(call.method.elementsEqual("getPublicAddress")){
+            
+        }
+        if(call.method.elementsEqual("sendTransaction")){
+            
+        }
+        if(call.method.elementsEqual("sendWhitelistTransaction")){
+            
+        }
+        if(call.method.elementsEqual("fund")){
+            
         }
     }
     
-    private func kinEarn(jwt : String){
-        let prevBalance = currentBalance
-        let handler: ExternalOfferCallback = { jwtConfirmation, error in
-            if jwtConfirmation != nil {
-                self.sendReport(type: "kinEarn", message: String(describing: jwtConfirmation), amount: self.currentBalance - prevBalance)
-            } else if let e = error {
-                self.sendError(type: "kinEarn", error: e)
-            }
-        }
-        _ = Kin.shared.requestPayment(offerJWT: jwt, completion: handler)
-    }
-    
-    private func kinSpend(jwt : String){
-        _ = Kin.shared.purchase(offerJWT: jwt) { jwtConfirmation, error in
-            if jwtConfirmation != nil {
-                self.sendReport(type: "kinSpend", message: String(describing: jwtConfirmation))
-            } else if let e = error {
-                self.sendError(type: "kinSpend", error: e)
-            }
-        }
-    }
-    
-    private func kinPayToUser(jwt : String){
-        _ = Kin.shared.payToUser(offerJWT: jwt) { jwtConfirmation, error in
-            if jwtConfirmation != nil {
-                self.sendReport(type: "kinPayToUser", message: String(describing: jwtConfirmation))
-            } else if let e = error {
-                self.sendReport(type: "kinPayToUser", message: String(describing: e))
-            }
-        }
-    }
-    
-    private func sendReport(type: String, message: String, amount: Int? = nil){
-        var info: Info
-        if (amount != nil){
-            info = Info(type: type, message: message, amount: amount)
+    private func initKinClient(appId: String? = nil){
+        if (appId == nil) {return}
+        var url : String
+        var network : Network
+        if (isProduction == true) {
+            //TODO Change to python server url
+            url = "MAIN URL"
+            network = .mainNet
         }else{
-            info = Info(type: type, message: message)
+            url = "http://horizon-testnet.kininfrastructure.com"
+            network = .playground
+        }
+        guard let providerUrl = URL(string: url) else {return}
+        do {
+            kinClient = KinClient(with: providerUrl, network: network, appId: try AppId(appId!))
+        } catch let error {
+            sendError(type: "kinInit", error: error)
+        }
+        receiveAccountsPayments()
+    }
+    
+    private func createAccount(){
+        do {
+            let account = try kinClient!.addAccount()
+            let accountNum = kinClient!.accounts.endIndex
+            if (!isProduction!){
+                createAccountOnPlayground(account: account, accountNum: accountNum) { (result: [String : Any]?) in
+                    guard result != nil else {
+                        self.sendError(code: "-1", type: "CreateAccountOnPlaygroundBlockchain", message: "Account creation on playground blockchain failed with no parsable JSON")
+                        self.deleteAccount(accountNum: accountNum)
+                        return
+                    }
+                    self.sendReport(type: "CreateAccountOnPlaygroundBlockchain", message: "Account was created successfully", intValue: accountNum)
+                }
+            }
+        } catch {
+            let err = ErrorReport(type: "createAccount", message: "Account creation exception")
+            sendError(code: "-6", message: "Account creation exception", details: err)
+        }
+    }
+    
+    private func createAccountOnPlayground(account: KinAccount, accountNum: Int,
+                                           completionHandler: @escaping (([String: Any]?) -> ())) {
+        let createUrlString = "http://friendbot-testnet.kininfrastructure.com?addr=\(account.publicAddress)"
+        guard let createUrl = URL(string: createUrlString) else {
+            sendError(code: "-1", type: "CreateAccountOnPlaygroundBlockchain", message: "Create Url string error")
+            self.deleteAccount(accountNum: accountNum)
+            return
+        }
+        let request = URLRequest(url: createUrl)
+        let task = URLSession.shared.dataTask(with: request) { (data: Data?, response: URLResponse?, error: Error?) in
+            if let error = error {
+                self.sendError(type: "CreateAccountOnPlaygroundBlockchain", error: error)
+                completionHandler(nil)
+                return
+            }
+            guard let data = data,
+                let json = try? JSONSerialization.jsonObject(with: data, options: []),
+                let result = json as? [String: Any] else {
+                    self.sendError(code: "-1", type: "CreateAccountOnPlaygroundBlockchain", message: "Account creation on playground blockchain failed with no parsable JSON")
+                    completionHandler(nil)
+                    return
+            }
+            guard result["status"] == nil else {
+                self.sendError(code: "-1", type: "CreateAccountOnPlaygroundBlockchain", message: "Error status \(result)")
+                completionHandler(nil)
+                return
+            }
+            completionHandler(result)
+        }
+        task.resume()
+    }
+    
+    private func deleteAccount(accountNum: Int) {
+        if (!isAccountCreated()){return}
+        do {
+            try kinClient!.deleteAccount(at: accountNum)
+            sendReport(type: "DeleteAccount", message: "Account deletion was a success")
+        }
+        catch let error {
+            sendError(type: "DeleteAccount", error: error)
+        }
+    }
+    
+    private func importAccount(json: String, secretPassphrase: String){
+        do {
+            _ = try kinClient!.importAccount(json, passphrase: secretPassphrase)
+        }
+        catch let error {
+            sendError(type: "ImportAccount", error: error)
+        }
+    }
+    
+    private func exportAccount(accountNum: Int, secretPassphrase: String) -> String?{
+        let account = getAccount(accountNum: accountNum)
+        if (account != nil) {return nil}
+        let json = try! account!.export(passphrase: secretPassphrase)
+        return json
+    }
+    
+    private func getAccount(accountNum: Int) -> KinAccount? {
+        if (isAccountCreated(accountNum: accountNum)){
+            return kinClient!.accounts[accountNum]
+        }
+        return nil
+    }
+    
+    private func getAccountPublicAddress(accountNum: Int) -> String? {
+        let account = getAccount(accountNum: accountNum)
+        if (account == nil) {return nil}
+        return account!.publicAddress
+    }
+    
+    private func getAccountState(accountNum: Int) {
+        let account = getAccount(accountNum: accountNum)
+        if (account != nil) {return}
+        account!.status { (status: AccountStatus?, error: Error?) in
+            if (error != nil){
+                self.sendError(type: "GetAccountState", error: error!)
+                return
+            }
+            guard let status = status else { return }
+            switch status {
+            case .notCreated:
+                self.sendReport(type: "GetAccountState", message: "Account is not created")
+                ()
+            case .created:
+                self.sendReport(type: "GetAccountState", message: "Account is created")
+                ()
+            }
+        }
+    }
+    
+    private func getAccountBalance(accountNum: Int){
+        let account = getAccount(accountNum: accountNum)
+        if (account != nil) {return}
+        getAccountBalance(forAccount: account!) { kin in
+            guard let kin = kin else {
+                self.sendError(code: "-1", type: "GetAccountBalance", message: "Error getting the balance")
+                return
+            }
+            self.sendReport(type: "GetAccountState", message: "Current balance of \(account!.publicAddress)", intValue: NSDecimalNumber(decimal: kin).intValue)
+        }
+    }
+    
+    private func getAccountBalance(forAccount account: KinAccount, completionHandler: ((Kin?) -> ())?) {
+        account.balance { (balance: Kin?, error: Error?) in
+            if error != nil || balance == nil {
+                print("Error getting the balance")
+                if let error = error { print("with error: \(error)") }
+                completionHandler?(nil)
+                return
+            }
+            completionHandler?(balance!)
+        }
+    }
+    
+    private func sendTransaction(fromAccountNum: Int, toAddress: String, kinAmount: Int, memo: String?, fee: Int) {
+        let account = getAccount(accountNum: fromAccountNum)
+        if (account != nil) {return}
+        sendTransaction(fromAccount: account!, toAddress: toAddress, kinAmount: Kin(kinAmount), memo: memo,fee: UInt32(fee)) { txId in
+            self.sendReport(type: "SendTransaction", message: "Transaction was sent successfully for \(kinAmount) Kin - id: \(txId!)")
+        }
+    }
+    
+    private func sendTransaction(fromAccount account: KinAccount,
+                                 toAddress address: String,
+                                 kinAmount kin: Kin,
+                                 memo: String?,
+                                 fee: Stroop,
+                                 completionHandler: ((String?) -> ())?) {
+        account.generateTransaction(to: address, kin: kin, memo: memo, fee: fee) { (envelope, error) in
+            if error != nil || envelope == nil {
+                self.sendError(code: "-1", type: "SendTransaction", message: "Could not generate the transaction")
+                if let error = error {
+                    self.sendError(type: "SendTransaction", error: error)
+                }
+                completionHandler?(nil)
+                return
+            }
+            
+            account.sendTransaction(envelope!) { (txId, error) in
+                if error != nil || txId == nil {
+                    self.sendError(code: "-1", type: "SendTransaction", message: "Error send transaction")
+                    if let error = error {
+                        self.sendError(type: "SendTransaction", error: error)
+                    }
+                    completionHandler?(nil)
+                    return
+                }
+                completionHandler?(txId!)
+            }
+        }
+    }
+    
+    private func sendWhitelistTransaction(whitelistServiceUrl: String, fromAccountNum: Int, toAddress: String, kinAmount: Int, memo: String?, fee: Int) {
+        let account = getAccount(accountNum: fromAccountNum)
+        if (account != nil) {return}
+        self.sendWhitelistTransaction(whitelistServiceUrl: whitelistServiceUrl,
+                                      fromAccount: account!, toAddress: toAddress,
+                                      kinAmount: Kin(kinAmount),
+                                      memo: memo,
+                                      fee: UInt32(fee)) { txId in
+            self.sendReport(type: "SendWhitelistTransaction", message: "Transaction was sent successfully for \(kinAmount) Kin - id: \(txId!)", intValue: kinAmount)
+            
+        }
+    }
+    
+    private func sendWhitelistTransaction(whitelistServiceUrl: String,
+                                          fromAccount account: KinAccount,
+                                          toAddress address: String,
+                                          kinAmount kin: Kin,
+                                          memo: String?,
+                                          fee: Stroop,
+                                          completionHandler: ((String?) -> ())?) {
+        account.generateTransaction(to: address, kin: kin, memo: memo, fee: fee) { (envelope, error) in
+            if error != nil || envelope == nil {
+                self.sendError(code: "-1", type: "SendWhitelistTransaction", message: "Could not generate the transaction")
+                if let error = error {
+                    self.sendError(type: "SendWhitelistTransaction", error: error)
+                }
+                completionHandler?(nil)
+                return
+            }
+            
+            let networkId = Network.testNet.id
+            let whitelistEnvelope = WhitelistEnvelope(transactionEnvelope: envelope!, networkId: networkId)
+            
+            self.signWhitelistTransaction(whitelistServiceUrl: whitelistServiceUrl,
+                                          envelope: whitelistEnvelope) { (signedEnvelope, error) in
+                                            if error != nil || signedEnvelope == nil {
+                                                print("Error whitelisting the envelope")
+                                                self.sendError(code: "-1", type: "SendWhitelistTransaction", message: "Error whitelisting the envelope")
+                                                if let error = error {
+                                                    self.sendError(type: "SendWhitelistTransaction", error: error)
+                                                }
+                                                completionHandler?(nil)
+                                                return
+                                            }
+                                            account.sendTransaction(signedEnvelope!) { (txId, error) in
+                                                if error != nil || txId == nil {
+                                                    self.sendError(code: "-1", type: "SendWhitelistTransaction", message: "Error send whitelist transaction")
+                                                    if let error = error {
+                                                        self.sendError(type: "SendWhitelistTransaction", error: error)
+                                                    }
+                                                    completionHandler?(nil)
+                                                    return
+                                                }
+                                                completionHandler?(txId!)
+                                            }
+                                            
+            }
+        }
+    }
+    
+    private func signWhitelistTransaction(whitelistServiceUrl: String,
+                                          envelope: WhitelistEnvelope,
+                                          completionHandler: @escaping ((KinSDK.TransactionEnvelope?, Error?) -> ())) {
+        let whitelistingUrl = URL(string: whitelistServiceUrl)!
+        
+        var request = URLRequest(url: whitelistingUrl)
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpMethod = "POST"
+        request.httpBody = try? JSONEncoder().encode(envelope)
+        
+        let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
+            do {
+                let envelope = try TransactionEnvelope.decodeResponse(data: data, error: error)
+                completionHandler(envelope, nil)
+            }
+            catch {
+                completionHandler(nil, error)
+            }
+        }
+        task.resume()
+    }
+    
+    //TODO Release method
+    //private func fund(amount: Kin) -> Promise<Bool> {}
+    
+    
+    
+    
+    private func receiveAccountsPayments() {
+        if(!isKinClientInit()){return}
+        for index in 0...((kinClient?.accounts.count)! - 1) {
+            receiveAccountPayment(accountNum: index)
+        }
+    }
+    
+    //TODO Send more detailed info which depends on accounts public addresses
+    private func receiveAccountPayment(accountNum: Int) {
+        let linkBag = LinkBag()
+        let watch: PaymentWatch
+        do{
+            watch = try kinClient!.accounts[accountNum]!.watchPayments(cursor: nil)
+            watch.emitter
+                .on(next: {
+                    self.sendReport(type: "paymentEvent", message: NSString(format: "to = %@, from = %@", $0.destination, $0.source) as String, intValue: ($0.amount as NSDecimalNumber).intValue)
+                })
+                .add(to: linkBag)
+        }catch{
+            sendError(type: "receiveAccountPayment", error: error)
+        }
+    }
+    
+    private func balanceChanged(accountNum: Int) {
+        let linkBag = LinkBag()
+        let watch: BalanceWatch
+        
+        do {
+            if(!isKinClientInit()) {return}
+            watch = try kinClient!.accounts[accountNum]!.watchBalance(nil)
+            watch.emitter
+                .on(next: {
+                    self.sendBalance(accountNum: accountNum, amount: ($0 as NSDecimalNumber).intValue)
+                })
+                .add(to: linkBag)
+        } catch {
+            sendError(code: "-3", type: "balanceChange", message: "Balance change exception")
+        }
+    }
+    
+    private func isAccountCreated(accountNum: Int = 0) -> Bool {
+        if(kinClient!.accounts.count <= accountNum){
+            sendError(code: "-1", type: "accountStateCheck", message: "Account is not created")
+            return false
+        }
+        return true
+    }
+    
+    private func isKinClientInit() -> Bool{
+        if(kinClient == nil){
+            sendError(code: "-1", type: "KinClientInit", message: "Kin client not inited")
+            return false
+        }
+        return true
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    private func sendBalance(accountNum: Int, amount: Int) {
+        let balanceReport = BalanceReport(accountNum: accountNum, amount: amount)
+        let encoder = JSONEncoder()
+        var data: Data? = nil
+        do {
+            data = try encoder.encode(balanceReport)
+        } catch {
+            sendError(type: "json", error: error)
+        }
+        if (data != nil) {
+            SwiftFlutterKinSdkPlugin.balanceFlutterController.eventCallback?(String(data: data!, encoding: .utf8)!)
+        }
+    }
+    
+    private func sendReport(type: String, message: String, intValue: Int? = nil){
+        var info: InfoReport
+        if (intValue != nil){
+            info = InfoReport(type: type, message: message, intValue: intValue)
+        }else{
+            info = InfoReport(type: type, message: message)
         }
         let encoder = JSONEncoder()
         var data: Data? = nil
@@ -147,13 +454,18 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     }
     
     private func sendError(type: String, error: Error) {
-        let err = PluginError(type: type, message: error.localizedDescription)
+        let err = ErrorReport(type: type, message: error.localizedDescription)
         var message: String? = error.localizedDescription
         if (message == nil) {message = ""}
         sendError(code: "-3", message: message!, details: err)
     }
     
-    private func sendError(code: String, message: String?, details: PluginError) {
+    private func sendError(code: String, type: String, message: String) {
+        let err = ErrorReport(type: type, message: message)
+        sendError(code: code, message: message, details: err)
+    }
+    
+    private func sendError(code: String, message: String?, details: ErrorReport) {
         let encoder = JSONEncoder()
         var data: Data? = nil
         do {
@@ -183,48 +495,25 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func ifKinInit() -> Bool{
-        if(!isKinInit){
-            let err = PluginError(type: "kinStart", message: "Kin SDK not started")
-            sendError(code: "-1", message: "Kin SDK not started", details: err)
-        }
-        return isKinInit
+    struct BalanceReport:Encodable {
+        let accountNum: Int
+        let amount: Int
     }
     
-    struct Info:Encodable {
+    struct InfoReport:Encodable {
         let type: String
         let message: String
-        let amount: Int?
-        init(type: String, message: String, amount: Int? = nil) {
+        let intValue: Int?
+        init(type: String, message: String, intValue: Int? = nil) {
             self.type = type
             self.message = message
-            self.amount = amount
+            self.intValue = intValue
         }
     }
     
-    struct PluginError:Encodable {
+    struct ErrorReport:Encodable {
         let type: String
         let message: String
     }
 }
 
-extension SwiftFlutterKinSdkPlugin: KinMigrationDelegate {
-    public func kinMigrationDidStart() {
-        isMigrationStarted = true
-        sendReport(type: "kinMigration", message: "Migration started")
-    }
-    
-    public func kinMigrationDidFinish() {
-        isMigrationStarted = false
-        sendReport(type: "kinMigration", message: "Migration finished")
-        initializeBalanceObserver(initBalanceObserver: initBalanceObserver!)
-    }
-    
-    public func kinMigrationIsReady() {
-        sendReport(type: "kinMigration", message: "Migration ready")
-    }
-    
-    public func kinMigration(error: Error) {
-        self.sendError(type: "kinEarn", error: error)
-    }
-}
