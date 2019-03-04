@@ -15,7 +15,7 @@ A new flutter plugin project.
   s.source_files = 'Classes/**/*'
   s.public_header_files = 'Classes/**/*.h'
   s.dependency 'Flutter'
-  s.dependency 'KinSDK', '0.7.17'
+  s.dependency 'KinSDK', '0.8.1'
   s.static_framework = true
   s.ios.deployment_target = '9.0'
 end
