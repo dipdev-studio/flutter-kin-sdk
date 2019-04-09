@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-// import 'package:flutter_kin_sdk/flutter_kin_sdk.dart';
+import 'package:flutter_kin_sdk/flutter_kin_sdk.dart';
 
 void main() => runApp(MyApp());
 
@@ -22,22 +22,16 @@ class _MyAppState extends State<MyApp> {
 
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    try {
-      // platformVersion = await FlutterKinSdk.platformVersion;
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
 
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion;
+    FlutterKinSdk.infoStream.receiveBroadcastStream().listen((data) {
+      print(data);
+      FlutterKinSdk.createAccount();
+    }, onError: (error) {
+      print(error);
     });
+
+
+    FlutterKinSdk.initKinClient("yqyf");
   }
 
   @override

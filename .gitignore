@@ -15,3 +15,6 @@ android/.project
 example/ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 example/ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
 example/ios/Runner.xcodeproj/project.pbxproj
+example/android/app/.settings/org.eclipse.buildship.core.prefs
+example/android/app/.classpath
+example/android/app/.project
