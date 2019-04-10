@@ -23,6 +23,7 @@ class FlutterKinSdk {
       'isProduction': isProduction,
     };
     if (serverUrl != null) params.addAll({"serverUrl": serverUrl});
+    // getting response by stream
     await _methodChannel.invokeMethod('initKinClient', params);
   }
 
@@ -61,7 +62,7 @@ class FlutterKinSdk {
       'publicAddress': publicAddress,
     };
     // getting response by stream
-    await _methodChannel.invokeMethod('getAccountBalance');
+    await _methodChannel.invokeMethod('getAccountBalance', params);
   }
 
   static Future getAccountState(String publicAddress) async {
@@ -69,7 +70,7 @@ class FlutterKinSdk {
       'publicAddress': publicAddress,
     };
     // getting response by stream
-    await _methodChannel.invokeMethod('getAccountState');
+    await _methodChannel.invokeMethod('getAccountState', params);
   }
 
   static Future sendTransaction(String publicAddress, String toAddress,
