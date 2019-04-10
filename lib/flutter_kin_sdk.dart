@@ -26,23 +26,27 @@ class FlutterKinSdk {
     await _methodChannel.invokeMethod('initKinClient', params);
   }
 
-  static Future createAccount() async {
-    // getting response by stream
-    await _methodChannel.invokeMethod('createAccount');
+  static Future<String> createAccount() async {
+    // public address will be returned
+    return await _methodChannel.invokeMethod('createAccount');
   }
 
-  static Future deleteAccount() async {
+  static Future deleteAccount(String publicAddress) async {
+    Map<String, dynamic> params = <String, dynamic>{
+      'publicAddress': publicAddress,
+    };
     // getting response by stream
-    await _methodChannel.invokeMethod('deleteAccount');
+    await _methodChannel.invokeMethod('deleteAccount', params);
   }
 
-  static Future importAccount(String recoveryString, String secretPassphrase) async {
+  static Future<String> importAccount(
+      String recoveryString, String secretPassphrase) async {
     Map<String, dynamic> params = <String, dynamic>{
       'recoveryString': recoveryString,
       'secretPassphrase': secretPassphrase,
     };
-    // getting response by stream
-    await _methodChannel.invokeMethod('importAccount', params);
+    // public address will be returned
+    return await _methodChannel.invokeMethod('importAccount', params);
   }
 
   static Future<String> exportAccount(String secretPassphrase) async {
@@ -52,22 +56,26 @@ class FlutterKinSdk {
     return await _methodChannel.invokeMethod('importAccount', params);
   }
 
-  static Future getAccountBalance() async {
+  static Future getAccountBalance(String publicAddress) async {
+    Map<String, dynamic> params = <String, dynamic>{
+      'publicAddress': publicAddress,
+    };
     // getting response by stream
     await _methodChannel.invokeMethod('getAccountBalance');
   }
 
-  static Future getAccountState() async {
+  static Future getAccountState(String publicAddress) async {
+    Map<String, dynamic> params = <String, dynamic>{
+      'publicAddress': publicAddress,
+    };
     // getting response by stream
     await _methodChannel.invokeMethod('getAccountState');
   }
 
-  static Future<String> getPublicAddress() async {
-    return await _methodChannel.invokeMethod('getPublicAddress');
-  }
-
-  static Future sendTransaction(String toAddress, int kinAmount, String memo, int fee) async {
+  static Future sendTransaction(String publicAddress, String toAddress,
+      int kinAmount, String memo, int fee) async {
     Map<String, dynamic> params = <String, dynamic>{
+      'publicAddress': publicAddress,
       'toAddress': toAddress,
       'kinAmount': kinAmount,
       'memo': memo,
@@ -77,8 +85,15 @@ class FlutterKinSdk {
     await _methodChannel.invokeMethod('sendTransaction', params);
   }
 
-  static Future sendWhitelistTransaction(String whitelistServiceUrl, String toAddress, int kinAmount, String memo, int fee) async {
+  static Future sendWhitelistTransaction(
+      String publicAddress,
+      String whitelistServiceUrl,
+      String toAddress,
+      int kinAmount,
+      String memo,
+      int fee) async {
     Map<String, dynamic> params = <String, dynamic>{
+      'publicAddress': publicAddress,
       'whitelistServiceUrl': whitelistServiceUrl,
       'toAddress': toAddress,
       'kinAmount': kinAmount,
@@ -89,7 +104,11 @@ class FlutterKinSdk {
     await _methodChannel.invokeMethod('sendWhitelistTransaction', params);
   }
 
-  static Future<String> fund(int kinAmount) async {
+  static Future<String> fund(String publicAddress, int kinAmount) async {
+    Map<String, dynamic> params = <String, dynamic>{
+      'publicAddress': publicAddress,
+      'kinAmount': kinAmount,
+    };
     // getting response by stream
     return await _methodChannel.invokeMethod('fund');
   }
