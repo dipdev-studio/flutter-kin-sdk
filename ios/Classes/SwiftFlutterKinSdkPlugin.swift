@@ -425,7 +425,6 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func receiveAccountsPayments() {
         if(!isKinClientInit() || kinClient?.accounts.count == 0){return}
-        print(kinClient?.accounts.count ?? 0)
         for index in 0...((kinClient?.accounts.count)! - 1) {
             receiveAccountPayment(accountNum: index)
         }

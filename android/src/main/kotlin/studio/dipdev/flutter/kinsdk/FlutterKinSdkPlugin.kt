@@ -9,19 +9,15 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
-import kin.core.*
-import kin.core.exception.CreateAccountException
-import kin.core.AccountStatus
-import java.lang.Exception
-import kin.core.exception.OperationFailedException
-import kin.core.TransactionId
-import java.math.BigDecimal
+import kin.sdk.*
+import kin.sdk.exception.CreateAccountException
 
 
 class FlutterKinSdkPlugin(private var activity: Activity, private var context: Context) : MethodCallHandler {
 
     private lateinit var kinClient: KinClient
-    private lateinit var kinAccounts: ArrayList<KinAccount>
+    private var isProduction: Boolean? = null
+    private var isKinInit = false
 
     companion object {
         var balanceCallback: EventChannel.EventSink? = null
@@ -59,166 +55,192 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
+
+        if (call.method == "initKinClient") {
+            var isProduction: Boolean? = call.argument("isProduction")
+            val appId: String? = call.argument("appId")
+            if (isProduction == null) isProduction = false
+            if (isProduction == true) {
+                sendError("-0", "initKinClient", "Sorry, but the production network is not implemented in this version of plugin")
+                return
+            }
+            initKinClient(appId)
+            isKinInit = true
+            sendReport("InitKinClient", "Kin init successful")
+        } else {
+            if (!isKinClientInit()) return
+        }
+
         when {
-            call.method == "kinInit" -> {
-                val isTest: Boolean? = call.argument("isTest")
-                val accountNum: Int? = call.argument("accountNum")
-                kinInit(isTest, accountNum)
+            call.method == "createAccount" -> {
+                result.success(createAccount())
             }
-            call.method == "getPublicAddress" -> {
-                val accountNum: Int? = call.argument("accountNum")
-                if (accountNum != null && ifAccountInit(accountNum))
-                    kinAccounts[accountNum].publicAddress
-            }
-            call.method == "kinTransfer" -> {
-                var fromAccount: Int? = call.argument("fromAccount")
-                val toAccountAddress: String? = call.argument("toAccountAddress")
-                val amount: String? = call.argument("amount")
-                val memo: String? = call.argument("memo")
 
-                if (toAccountAddress == null || amount == null) return
-                if (fromAccount == null)
-                    fromAccount = 0
-                if (ifAccountInit(fromAccount))
-                    transfer(fromAccount, toAccountAddress, amount, memo)
+            call.method == "deleteAccount" -> {
+                val publicAddress: String? = call.argument("publicAddress") ?: return
+                val accountNum: Int = getAccountNum(publicAddress!!) ?: return
+                deleteAccount(accountNum)
             }
-            call.method == "kinTransferToYourself" -> {
-                val fromAccount: Int? = call.argument("fromAccount")
-                val toAccount: Int? = call.argument("toAccount")
-                val amount: String? = call.argument("amount")
-                val memo: String? = call.argument("memo")
 
-                if (fromAccount == null || toAccount == null || amount == null) return
-                if (ifAccountInit(fromAccount) && ifAccountInit(toAccount)) {
-                    val toAccountAddress: String? = kinAccounts[toAccount].publicAddress
-                    if ((toAccountAddress) != null)
-                        transfer(fromAccount, toAccountAddress, amount, memo)
-                    else
-                        sendException("-7", "kinTransferToYourself", "Public address of the receiver was not found", null)
-                }
+            call.method == "importAccount" -> {
+                val recoveryString: String? = call.argument("recoveryString") ?: return
+                val secretPassphrase: String? = call.argument("secretPassphrase") ?: return
+                val account: KinAccount? = importAccount(recoveryString!!, secretPassphrase!!) ?: return
+                result.success(account!!.publicAddress)
             }
-            call.method == "accountStateCheck" -> {
-                val accountNum: Int? = call.argument("accountNum")
-                if (accountNum != null) accountStateCheck(accountNum)
+
+            call.method == "exportAccount" -> {
+                val publicAddress: String? = call.argument("publicAddress") ?: return
+                val secretPassphrase: String? = call.argument("secretPassphrase") ?: return
+                val accountNum: Int = getAccountNum(publicAddress!!) ?: return
+                val recoveryString: String? = exportAccount(accountNum, secretPassphrase!!) ?: return
+                result.success(recoveryString)
             }
-            else -> result.notImplemented()
+
+            call.method == "getAccountBalance" -> {
+                var publicAddress: String? = call.argument("publicAddress") ?: return
+
+            }
+
+            call.method == "getAccountState" -> {
+                var publicAddress: String? = call.argument("publicAddress") ?: return
+
+            }
+
+            call.method == "sendTransaction" -> {
+                var publicAddress: String? = call.argument("publicAddress") ?: return
+                var toAddress: String? = call.argument("toAddress") ?: return
+                var kinAmount: Int? = call.argument("kinAmount") ?: return
+                var memo: String? = call.argument("memo")
+                var fee: Int? = call.argument("fee") ?: return
+
+            }
+
+            call.method == "sendWhitelistTransaction" -> {
+                var publicAddress: String? = call.argument("publicAddress") ?: return
+                var whitelistServiceUrl: String? = call.argument("whitelistServiceUrl") ?: return
+                var toAddress: String? = call.argument("toAddress") ?: return
+                var kinAmount: Int? = call.argument("kinAmount") ?: return
+                var memo: String? = call.argument("memo")
+                var fee: Int? = call.argument("fee") ?: return
+
+            }
+
+            call.method == "fund" -> {
+                //TODO
+            }
         }
     }
 
-    private fun kinInit(isTest: Boolean? = null, num: Int? = null) {
-        var networkId = ServiceProvider.NETWORK_ID_MAIN
-        if (isTest == true) networkId = ServiceProvider.NETWORK_ID_TEST
-
-        val horizonProvider = ServiceProvider("https://horizon.stellar.org", networkId)
-        kinClient = KinClient(context, horizonProvider)
-        receiveAccountsPayments()
-
-        if (num != null && !isAccountCreated(num)) {
-            ifAccountInit(num)
-        } else if (num == null && !kinClient.hasAccount()) {
-            initAccount()
+    private fun initKinClient(appId: String? = null) {
+        if (appId == null) return
+        val network: Environment = if (isProduction == true) {
+            Environment.PRODUCTION
+        } else {
+            Environment.TEST
         }
-    }
 
-    // create and activate
-    private fun initAccount() {
         try {
-            val account = kinClient.addAccount()
-            kinAccounts.add(account)
-            activateAccount(kinAccounts.lastIndex)
+            kinClient = KinClient(context, network, appId)
+        } catch (error:Throwable){
+            sendError("InitKinClient", error)
+        }
+
+        receiveAccountsPayments()
+    }
+
+    private fun createAccount() : String? {
+        try {
+            val account:KinAccount = kinClient.addAccount()
+            return account.publicAddress
         } catch (e: CreateAccountException) {
-            sendException("-6", "addAccount", "Account adding exception", e)
+            val err = ErrorReport("CreateAccount", "Account creation exception")
+            sendError("-2", "Account creation exception", err)
+        }
+        return null
+    }
+
+    private fun deleteAccount(accountNum: Int) {
+        if (!isAccountCreated()) return
+        try {
+            kinClient.deleteAccount(accountNum)
+            sendReport("DeleteAccount", "Account deletion was a success")
+        } catch (error:Throwable){
+            sendError("DeleteAccount", error)
         }
     }
 
-    private fun activateAccount(accountNum: Int) {
-        val activationRequest: Request<Void> = kinAccounts[accountNum].activate()
-        activationRequest.run(
-                object : ResultCallback<Void> {
-                    override fun onResult(result: Void?) {
-                        sendReport("initAccount", "Successful activating an account")
-                        receiveAccountPayment(accountNum)
-                    }
+    private fun importAccount(json: String, secretPassphrase: String) : KinAccount? {
+        try {
+            return kinClient.importAccount(json, secretPassphrase)
+        } catch (error:Throwable){
+            sendError("ImportAccount", error)
+        }
+        return null
+    }
 
-                    override fun onError(e: java.lang.Exception?) {
-                        sendException("-5", "accountActivation", "Account activation exception", e)
-                    }
-                }
-        )
+    private fun exportAccount(accountNum: Int, secretPassphrase: String) : String? {
+        val account = getAccount(accountNum) ?: return null
+        try {
+            return account.export(secretPassphrase)
+        } catch (error:Throwable){
+            sendError("ExportAccount", error)
+        }
+        return null
     }
 
     private fun receiveAccountsPayments() {
-        for ((accountNum) in kinAccounts.withIndex()) {
-            if (ifAccountInit(accountNum))
-                receiveAccountPayment(accountNum)
+        if ((!isKinClientInit() || kinClient.accountCount == 0)) {
+            return
+        }
+        for (index in 0 until kinClient.accountCount) {
+            receiveAccountPayment(index)
         }
     }
 
-    //TODO Send more detailed info which depends on accounts public addresses
     private fun receiveAccountPayment(accountNum: Int) {
-        kinAccounts[accountNum].blockchainEvents()
-                .addPaymentListener { payment ->
-                    sendReport("paymentEvent", String
-                            .format("to = %s, from = %s", payment.sourcePublicKey(),
-                                    payment.destinationPublicKey(), payment.amount().toPlainString()), payment.amount().longValueExact())
-                }
+        val account: KinAccount = getAccount(accountNum) ?: return
+        account.addPaymentListener { payment ->
+            sendReport("PaymentEvent", String.format("to = %s, from = %s", payment.sourcePublicKey(),
+                    payment.destinationPublicKey()), payment.amount().toPlainString())
+        }
     }
 
-    //TODO Send more detailed info with individual fields
-    private fun transfer(fromAccount: Int, toAccountAddress: String, amount: String, memo: String?) {
-        var transactionRequest = kinAccounts[fromAccount].sendTransaction(toAccountAddress, BigDecimal(amount), memo)
-        if (memo == null) transactionRequest = kinAccounts[fromAccount].sendTransaction(toAccountAddress, BigDecimal(amount))
-        transactionRequest.run(object : ResultCallback<TransactionId> {
-
-            override fun onResult(result: TransactionId) {
-                balanceChanged(fromAccount)
-                sendReport("transfer", "Successful transferring $amount Kin to $toAccountAddress")
-            }
-
-            override fun onError(e: Exception) {
-                sendException("-6", "transfer", "Transfer to account exception", e)
-            }
-        })
+    private fun isKinClientInit(): Boolean {
+        if (isKinInit) {
+            sendError("-14", "KinClientInit", "Kin client not inited")
+            return false
+        }
+        return true
     }
 
-    private fun accountStateCheck(accountNum: Int) {
-        val statusRequest = kinAccounts[accountNum].status
-        statusRequest.run(
-                object : ResultCallback<Int> {
-                    override fun onResult(result: Int?) {
-                        when (result) {
-                            AccountStatus.ACTIVATED -> {
-                                sendReport("accountStateCheck", "Account is created and activated")
-                            }
-                            AccountStatus.NOT_ACTIVATED -> {
-                                sendReport("accountStateCheck", "Account is not activated")
-                            }
-                            AccountStatus.NOT_CREATED -> {
-                                sendReport("accountStateCheck", "Account is not created")
-                            }
-                        }
-                    }
-
-                    override fun onError(e: java.lang.Exception?) {
-                        sendException("-4", "accountStateCheck", "Account state check exception", e)
-                    }
-                })
+    private fun getAccount(accountNum: Int): KinAccount? {
+        if (isAccountCreated(accountNum)) {
+            return kinClient.getAccount(accountNum)
+        }
+        return null
     }
 
-    private fun balanceChanged(accountNum: Int) {
-        val balanceRequest = kinAccounts[accountNum].balance
-        balanceRequest.run(object : ResultCallback<Balance> {
-            override fun onResult(result: Balance?) {
-                if (result != null) {
-                    sendBalance(accountNum, result.value().longValueExact())
-                }
+    private fun getAccountNum(publicAddress: String) : Int? {
+        if (kinClient.accountCount == 0) return null
+        for (index in 0 .. (kinClient.accountCount - 1)) {
+            if (getAccount(index)?.publicAddress == publicAddress) {
+                return index
             }
-
-            override fun onError(e: Exception?) {
-                sendException("-3", "balanceChange", "Balance change exception", e)
-            }
-        })
+        }
+        sendError("-13", "AccountStateCheck", "Account is not created")
+        return null
     }
+
+
+    private fun isAccountCreated(accountNum: Int = 0): Boolean {
+        if (kinClient.accountCount < accountNum) {
+            sendError("-13", "AccountStateCheck", "Account is not created")
+            return false
+        }
+        return true
+    }
+
 
     private fun sendBalance(accountNum: Int, amount: Long) {
         val balanceReport = BalanceReport(accountNum, amount)
@@ -231,9 +253,9 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         if (json != null) balanceCallback.success(json)
     }
 
-    private fun sendReport(type: String, message: String, amount: Long? = null) {
-        val infoReport: InfoReport = if (amount != null)
-            InfoReport(type, message, amount)
+    private fun sendReport(type: String, message: String, value: String? = null) {
+        val infoReport: InfoReport = if (value != null)
+            InfoReport(type, message, value)
         else
             InfoReport(type, message)
         var json: String? = null
@@ -252,6 +274,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         sendError(message, error.localizedMessage, err)
     }
 
+    private fun sendError(code: String, type: String, message: String) {
+        val err = ErrorReport(type, message)
+        sendError(code, message, err)
+    }
+
     private fun sendError(code: String, message: String?, details: ErrorReport) {
         var json: String? = null
         try {
@@ -262,39 +289,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         if (json != null) infoCallback.error(code, message, json)
     }
 
-    private fun sendException(code: String, type: String, message: String, error: Throwable?) {
-        var stringException = message
-        if (error != null) stringException = error.message!!
-        val err = ErrorReport(type, stringException)
-        sendError(code, stringException, err)
-    }
-
-    private fun ifAccountInit(accountNum: Int): Boolean {
-        if (!isAccountCreated()) {
-            val err = ErrorReport("accountStateCheck", "Account is not activated")
-            sendError("-1", "Account is not activated", err)
-            return false
-        } else {
-            try {
-                val state = kinAccounts[accountNum].statusSync
-                if (state == AccountStatus.NOT_ACTIVATED) {
-                    val err = ErrorReport("accountStateCheck", "Account is not activated")
-                    sendError("-2", "Account is not activated", err)
-                    return false
-                }
-            } catch (e: OperationFailedException) {
-                sendError("accountStateCheck", e)
-                return false
-            }
-        }
-        return true
-    }
-
-    private fun isAccountCreated(num: Int = 0): Boolean {
-        return kinClient.accountCount > num
-    }
-
     data class BalanceReport(val accountNum: Int, val amount: Long)
-    data class InfoReport(val type: String, val message: String, val amount: Long? = null)
+    data class InfoReport(val type: String, val message: String, val value: String? = null)
     data class ErrorReport(val type: String, val message: String)
 }
