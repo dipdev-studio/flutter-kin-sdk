@@ -50,11 +50,12 @@ class FlutterKinSdk {
     return await _methodChannel.invokeMethod('importAccount', params);
   }
 
-  static Future<String> exportAccount(String secretPassphrase) async {
+  static Future<String> exportAccount(String publicAddress, String secretPassphrase) async {
     Map<String, dynamic> params = <String, dynamic>{
+      'publicAddress': publicAddress,
       'secretPassphrase': secretPassphrase,
     };
-    return await _methodChannel.invokeMethod('importAccount', params);
+    return await _methodChannel.invokeMethod('exportAccount', params);
   }
 
   static Future getAccountBalance(String publicAddress) async {
