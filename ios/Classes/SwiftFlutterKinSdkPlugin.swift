@@ -34,20 +34,24 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                 return
             }
             initKinClient(appId: appId, serverUrl: serverUrl)
-            sendReport(type: "initKinClient", message: "Kin init successful")
+            sendReport(type: "InitKinClient", message: "Kin init successful")
         } else {
             if(!isKinClientInit()){return}
         }
+        
         if(call.method.elementsEqual("createAccount")){
-            print("🔥🔥🔥")
-            self.createAccount()
+            result(self.createAccount())
         }
+        
         if(call.method.elementsEqual("deleteAccount")){
-//            let arguments = call.arguments as? NSDictionary
-//            let accountNum = arguments!["accountNum"] as? Int
-//            if (accountNum == nil){return}
-            deleteAccount(accountNum: 0)
+            let arguments = call.arguments as? NSDictionary
+            let publicAddress = arguments!["publicAddress"] as? String
+            if (publicAddress == nil){return}
+            let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
+            if (accountNum == nil){return}
+            deleteAccount(accountNum: accountNum!)
         }
+        
         if(call.method.elementsEqual("importAccount")){
             let arguments = call.arguments as? NSDictionary
             let recoveryString = arguments!["recoveryString"] as? String
@@ -55,47 +59,61 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             if (recoveryString == nil || secretPassphrase == nil){return}
             importAccount(json: recoveryString!, secretPassphrase: secretPassphrase!)
         }
+        
         if(call.method.elementsEqual("exportAccount")){
             let arguments = call.arguments as? NSDictionary
-//            let accountNum = arguments!["accountNum"] as? Int
+            let publicAddress = arguments!["publicAddress"] as? String
             let secretPassphrase = arguments!["secretPassphrase"] as? String
-            if (secretPassphrase == nil){return}
-//            if (accountNum == nil || secretPassphrase == nil){return}
-            let recoveryString = exportAccount(accountNum: 0, secretPassphrase: secretPassphrase!)
+            if (publicAddress == nil || secretPassphrase == nil){return}
+            let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
+            if (accountNum == nil){return}
+            let recoveryString = exportAccount(accountNum: accountNum!, secretPassphrase: secretPassphrase!)
             if (recoveryString != nil) {result(recoveryString)}
         }
+        
         if(call.method.elementsEqual("getAccountBalance")){
-            getAccountBalance(accountNum: 0)
+            let arguments = call.arguments as? NSDictionary
+            let publicAddress = arguments!["publicAddress"] as? String
+            let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
+            if (accountNum == nil){return}
+            getAccountBalance(accountNum: accountNum!)
         }
+        
         if(call.method.elementsEqual("getAccountState")){
-            getAccountState(accountNum: 0)
+            let arguments = call.arguments as? NSDictionary
+            let publicAddress = arguments!["publicAddress"] as? String
+            let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
+            if (accountNum == nil){return}
+            getAccountState(accountNum: accountNum!)
         }
-        if(call.method.elementsEqual("getPublicAddress")){
-            if let account = getAccount(accountNum: 0){
-                result(account.publicAddress)
-            }
-        }
+        
         if(call.method.elementsEqual("sendTransaction")){
             let arguments = call.arguments as? NSDictionary
-//            let fromAccountNum = arguments!["fromAccountNum"] as? Int
+            let publicAddress = arguments!["publicAddress"] as? String
             let toAddress = arguments!["toAddress"] as? String
             let kinAmount = arguments!["kinAmount"] as? Int
             let memo = arguments!["memo"] as? String
             let fee = arguments!["fee"] as? Int
-            if (toAddress == nil || kinAmount == nil || fee == nil){return}
-            sendTransaction(fromAccountNum: 0, toAddress: toAddress!, kinAmount: kinAmount!, memo: memo, fee: fee!)
+            if (publicAddress == nil || toAddress == nil || kinAmount == nil || fee == nil){return}
+            let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
+            if (accountNum == nil){return}
+            sendTransaction(fromAccountNum: accountNum!, toAddress: toAddress!, kinAmount: kinAmount!, memo: memo, fee: fee!)
         }
+        
         if(call.method.elementsEqual("sendWhitelistTransaction")){
             let arguments = call.arguments as? NSDictionary
             let whitelistServiceUrl = arguments!["whitelistServiceUrl"] as? String
-//            let fromAccountNum = arguments!["fromAccountNum"] as? Int
+            let publicAddress = arguments!["publicAddress"] as? String
             let toAddress = arguments!["toAddress"] as? String
             let kinAmount = arguments!["kinAmount"] as? Int
             let memo = arguments!["memo"] as? String
             let fee = arguments!["fee"] as? Int
-            if (whitelistServiceUrl == nil || toAddress == nil || kinAmount == nil || fee == nil){return}
-            sendWhitelistTransaction(whitelistServiceUrl: whitelistServiceUrl!, fromAccountNum: 0, toAddress: toAddress!, kinAmount: kinAmount!, memo: memo, fee: fee!)
+            if (whitelistServiceUrl == nil || publicAddress == nil || toAddress == nil || kinAmount == nil || fee == nil){return}
+            let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
+            if (accountNum == nil){return}
+            sendWhitelistTransaction(whitelistServiceUrl: whitelistServiceUrl!, fromAccountNum: accountNum!, toAddress: toAddress!, kinAmount: kinAmount!, memo: memo, fee: fee!)
         }
+        
         if(call.method.elementsEqual("fund")){
             //TODO
         }
@@ -122,24 +140,26 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         receiveAccountsPayments()
     }
     
-    private func createAccount(){
+    private func createAccount() -> String?{
         do {
             let account = try kinClient!.addAccount()
             let accountNum = kinClient!.accounts.endIndex
             if (!isProduction!){
                 createAccountOnPlayground(account: account, accountNum: accountNum) { (result: [String : Any]?) in
                     guard result != nil else {
-                        self.sendError(code: "-1", type: "CreateAccountOnPlaygroundBlockchain", message: "Account creation on playground blockchain failed with no parsable JSON")
+                        self.sendError(code: "-1", type: "CreateAccountOnPlaygroundBlockchain", message: "Account creation on playground blockchain failed and account has already deleted")
                         self.deleteAccount(accountNum: accountNum)
                         return
                     }
-                    self.sendReport(type: "CreateAccountOnPlaygroundBlockchain", message: "Account was created successfully", intValue: accountNum)
+                    self.sendReport(type: "CreateAccountOnPlaygroundBlockchain", message: "Account in playground was created successfully", value: account.publicAddress)
                 }
             }
+            return account.publicAddress
         } catch {
             let err = ErrorReport(type: "CreateAccount", message: "Account creation exception")
             sendError(code: "-2", message: "Account creation exception", details: err)
         }
+        return nil
     }
     
     private func createAccountOnPlayground(account: KinAccount, accountNum: Int,
@@ -208,6 +228,24 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         return nil
     }
     
+    private func getAccountNum(publicAddress: String) -> Int? {
+        if(kinClient?.accounts.count == 0){return nil}
+        for index in 0...((kinClient?.accounts.count)! - 1) {
+            if (getAccount(accountNum: index)?.publicAddress == publicAddress) {return index}
+        }
+        
+        sendError(code: "-13", type: "AccountStateCheck", message: "Account is not created")
+        return nil
+    }
+    
+    private func isAccountCreated(accountNum: Int = 1) -> Bool {
+        if((kinClient?.accounts.endIndex)! >= accountNum){
+            sendError(code: "-13", type: "AccountStateCheck", message: "Account is not created")
+            return false
+        }
+        return true
+    }
+    
     private func getAccountPublicAddress(accountNum: Int) -> String? {
         let account = getAccount(accountNum: accountNum)
         if (account == nil) {return nil}
@@ -242,7 +280,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                 self.sendError(code: "-6", type: "GetAccountBalance", message: "Error getting the balance")
                 return
             }
-            self.sendReport(type: "GetAccountState", message: "Current balance of \(account!.publicAddress)", intValue: NSDecimalNumber(decimal: kin).intValue)
+            self.sendReport(type: "GetAccountBalance", message: "Current balance of \(account!.publicAddress)", value: String(NSDecimalNumber(decimal: kin).intValue))
         }
     }
     
@@ -304,7 +342,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                       kinAmount: Kin(kinAmount),
                                       memo: memo,
                                       fee: UInt32(fee)) { txId in
-            self.sendReport(type: "SendWhitelistTransaction", message: "Transaction was sent successfully for \(kinAmount) Kin - id: \(txId!)", intValue: kinAmount)
+            self.sendReport(type: "SendWhitelistTransaction", message: "Transaction was sent successfully for \(kinAmount) Kin - id: \(txId!)", value: String(kinAmount))
             
         }
     }
@@ -383,6 +421,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func receiveAccountsPayments() {
         if(!isKinClientInit() || kinClient?.accounts.count == 0){return}
+        print(kinClient?.accounts.count ?? 0)
         for index in 0...((kinClient?.accounts.count)! - 1) {
             receiveAccountPayment(accountNum: index)
         }
@@ -396,7 +435,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             watch = try kinClient!.accounts[accountNum]!.watchPayments(cursor: nil)
             watch.emitter
                 .on(next: {
-                    self.sendReport(type: "PaymentEvent", message: NSString(format: "to = %@, from = %@", $0.destination, $0.source) as String, intValue: ($0.amount as NSDecimalNumber).intValue)
+                    self.sendReport(type: "PaymentEvent", message: NSString(format: "to = %@, from = %@", $0.destination, $0.source) as String, value: String(($0.amount as NSDecimalNumber).intValue))
                 })
                 .add(to: linkBag)
         }catch{
@@ -421,26 +460,12 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func isAccountCreated(accountNum: Int = 0) -> Bool {
-        if(kinClient!.accounts.count <= accountNum){
-            sendError(code: "-13", type: "AccountStateCheck", message: "Account is not created")
-            return false
-        }
-        return true
-    }
-    
     private func isKinClientInit() -> Bool{
         if(kinClient == nil){
             sendError(code: "-14", type: "KinClientInit", message: "Kin client not inited")
             return false
         }
         return true
-    }
-    
-    private func getAccountNum(call: FlutterMethodCall) -> Int?{
-        let arguments = call.arguments as? NSDictionary
-        let accountNum = arguments!["accountNum"] as? Int
-        return accountNum
     }
     
     private func sendBalance(accountNum: Int, amount: Int) {
@@ -457,10 +482,10 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func sendReport(type: String, message: String, intValue: Int? = nil){
+    private func sendReport(type: String, message: String, value: String? = nil){
         var info: InfoReport
-        if (intValue != nil){
-            info = InfoReport(type: type, message: message, intValue: intValue)
+        if (value != nil){
+            info = InfoReport(type: type, message: message, value: value)
         }else{
             info = InfoReport(type: type, message: message)
         }
@@ -526,11 +551,11 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     struct InfoReport:Encodable {
         let type: String
         let message: String
-        let intValue: Int?
-        init(type: String, message: String, intValue: Int? = nil) {
+        let value: String?
+        init(type: String, message: String, value: String? = nil) {
             self.type = type
             self.message = message
-            self.intValue = intValue
+            self.value = value
         }
     }
     
