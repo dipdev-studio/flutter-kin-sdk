@@ -14,7 +14,9 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   String _platformVersion = 'Unknown';
-  String publicAddress;
+  String firstPublicAddress;
+  String secondPublicAddress;
+  int count = 0;
 
   @override
   void initState() {
@@ -36,26 +38,27 @@ class _MyAppState extends State<MyApp> {
   Future streamReceiver(data) async {
     Info info = Info().fromJson(json.decode(data));
 
-
     switch (info.type) {
       case "InitKinClient":
         print(info.message);
-        publicAddress = await FlutterKinSdk.createAccount();
+        firstPublicAddress = await FlutterKinSdk.createAccount();
+        secondPublicAddress = await FlutterKinSdk.createAccount();
         break;
       case "CreateAccountOnPlaygroundBlockchain":
+        count++;
         print(info.type + " Wallet: " + info.value);
-        await FlutterKinSdk.getAccountState(publicAddress);
+        if (count == 2){
+          FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 10, "some", 5);
+        }
         break;
       case "DeleteAccount":
         print(info.message);
         break;
       case "GetAccountState":
         print(info.message);
-        await FlutterKinSdk.getAccountBalance(publicAddress);
         break;
       case "GetAccountBalance":
         print(info.message + " Balance: " + info.value);
-        await FlutterKinSdk.deleteAccount(publicAddress);
         break;
       case "SendTransaction":
         print(info.message + " Amount: " + info.value);

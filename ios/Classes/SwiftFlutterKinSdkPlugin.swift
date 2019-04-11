@@ -57,7 +57,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             let recoveryString = arguments!["recoveryString"] as? String
             let secretPassphrase = arguments!["secretPassphrase"] as? String
             if (recoveryString == nil || secretPassphrase == nil){return}
-            importAccount(json: recoveryString!, secretPassphrase: secretPassphrase!)
+            let account = importAccount(json: recoveryString!, secretPassphrase: secretPassphrase!)
+            if (account == nil) {return}
+            result(account!.publicAddress)
         }
         
         if(call.method.elementsEqual("exportAccount")){
@@ -143,12 +145,13 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     private func createAccount() -> String?{
         do {
             let account = try kinClient!.addAccount()
-            let accountNum = kinClient!.accounts.endIndex
+            let accountNum = getAccountNum(publicAddress: account.publicAddress)
+            if (accountNum == nil) {return nil}
             if (!isProduction!){
-                createAccountOnPlayground(account: account, accountNum: accountNum) { (result: [String : Any]?) in
+                createAccountOnPlayground(account: account, accountNum: accountNum!) { (result: [String : Any]?) in
                     guard result != nil else {
                         self.sendError(code: "-1", type: "CreateAccountOnPlaygroundBlockchain", message: "Account creation on playground blockchain failed and account has already deleted")
-                        self.deleteAccount(accountNum: accountNum)
+                        self.deleteAccount(accountNum: accountNum!)
                         return
                     }
                     self.sendReport(type: "CreateAccountOnPlaygroundBlockchain", message: "Account in playground was created successfully", value: account.publicAddress)
@@ -205,18 +208,19 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func importAccount(json: String, secretPassphrase: String){
+    private func importAccount(json: String, secretPassphrase: String) -> KinAccount?{
         do {
-            _ = try kinClient!.importAccount(json, passphrase: secretPassphrase)
+            return try kinClient!.importAccount(json, passphrase: secretPassphrase)
         }
         catch let error {
             sendError(type: "ImportAccount", error: error)
         }
+        return nil
     }
     
     private func exportAccount(accountNum: Int, secretPassphrase: String) -> String?{
         let account = getAccount(accountNum: accountNum)
-        if (account != nil) {return nil}
+        if (account == nil) {return nil}
         let json = try! account!.export(passphrase: secretPassphrase)
         return json
     }
@@ -238,8 +242,8 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         return nil
     }
     
-    private func isAccountCreated(accountNum: Int = 1) -> Bool {
-        if((kinClient?.accounts.endIndex)! >= accountNum){
+    private func isAccountCreated(accountNum: Int = 0) -> Bool {
+        if((kinClient?.accounts.count)! < accountNum){
             sendError(code: "-13", type: "AccountStateCheck", message: "Account is not created")
             return false
         }
@@ -254,7 +258,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func getAccountState(accountNum: Int) {
         let account = getAccount(accountNum: accountNum)
-        if (account != nil) {return}
+        if (account == nil) {return}
         account!.status { (status: AccountStatus?, error: Error?) in
             if (error != nil){
                 self.sendError(type: "GetAccountState", error: error!)
@@ -274,7 +278,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func getAccountBalance(accountNum: Int){
         let account = getAccount(accountNum: accountNum)
-        if (account != nil) {return}
+        if (account == nil) {return}
         getAccountBalance(forAccount: account!) { kin in
             guard let kin = kin else {
                 self.sendError(code: "-6", type: "GetAccountBalance", message: "Error getting the balance")
@@ -298,9 +302,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func sendTransaction(fromAccountNum: Int, toAddress: String, kinAmount: Int, memo: String?, fee: Int) {
         let account = getAccount(accountNum: fromAccountNum)
-        if (account != nil) {return}
+        if (account == nil) {return}
         sendTransaction(fromAccount: account!, toAddress: toAddress, kinAmount: Kin(kinAmount), memo: memo,fee: UInt32(fee)) { txId in
-            self.sendReport(type: "SendTransaction", message: "Transaction was sent successfully for \(kinAmount) Kin - id: \(txId!)")
+            self.sendReport(type: "SendTransaction", message: "Transaction was sent successfully for \(kinAmount)")
         }
     }
     
@@ -336,7 +340,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func sendWhitelistTransaction(whitelistServiceUrl: String, fromAccountNum: Int, toAddress: String, kinAmount: Int, memo: String?, fee: Int) {
         let account = getAccount(accountNum: fromAccountNum)
-        if (account != nil) {return}
+        if (account == nil) {return}
         self.sendWhitelistTransaction(whitelistServiceUrl: whitelistServiceUrl,
                                       fromAccount: account!, toAddress: toAddress,
                                       kinAmount: Kin(kinAmount),
