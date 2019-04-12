@@ -58,20 +58,23 @@ class FlutterKinSdk {
     return await _methodChannel.invokeMethod('exportAccount', params);
   }
 
-  static Future getAccountBalance(String publicAddress) async {
+  static Future<int> getAccountBalance(String publicAddress) async {
     Map<String, dynamic> params = <String, dynamic>{
       'publicAddress': publicAddress,
     };
-    // getting response by stream
-    await _methodChannel.invokeMethod('getAccountBalance', params);
+
+    return await _methodChannel.invokeMethod('getAccountBalance', params);
   }
 
-  static Future getAccountState(String publicAddress) async {
+  static Future<AccountStates> getAccountState(String publicAddress) async {
     Map<String, dynamic> params = <String, dynamic>{
       'publicAddress': publicAddress,
     };
-    // getting response by stream
-    await _methodChannel.invokeMethod('getAccountState', params);
+
+    var state = await _methodChannel.invokeMethod('getAccountState', params);
+    
+    if (state == "Account is created") return AccountStates.Created;
+    return AccountStates.NotCreated;
   }
 
   static Future sendTransaction(String publicAddress, String toAddress,
@@ -115,3 +118,5 @@ class FlutterKinSdk {
     return await _methodChannel.invokeMethod('fund');
   }
 }
+
+enum AccountStates { Created, NotCreated }

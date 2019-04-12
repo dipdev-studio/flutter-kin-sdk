@@ -78,7 +78,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             let publicAddress = arguments!["publicAddress"] as? String
             let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
             if (accountNum == nil){return}
-            getAccountBalance(accountNum: accountNum!)
+            getAccountBalance(accountNum: accountNum!){ (balance) -> () in
+                result(balance)
+            }
         }
         
         if(call.method.elementsEqual("getAccountState")){
@@ -86,7 +88,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             let publicAddress = arguments!["publicAddress"] as? String
             let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
             if (accountNum == nil){return}
-            getAccountState(accountNum: accountNum!)
+            getAccountState(accountNum: accountNum!){ (state) -> () in
+                result(state)
+            }
         }
         
         if(call.method.elementsEqual("sendTransaction")){
@@ -256,7 +260,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         return account!.publicAddress
     }
     
-    private func getAccountState(accountNum: Int) {
+    private func getAccountState(accountNum: Int, completion: @escaping (_ result: String)->()) {
         let account = getAccount(accountNum: accountNum)
         if (account == nil) {return}
         account!.status { (status: AccountStatus?, error: Error?) in
@@ -266,17 +270,17 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             }
             guard let status = status else { return }
             switch status {
-            case .notCreated:
-                self.sendReport(type: "GetAccountState", message: "Account is not created")
-                ()
             case .created:
-                self.sendReport(type: "GetAccountState", message: "Account is created")
+                completion("Account is created")
+                ()
+            case .notCreated:
+                completion("Account is not created")
                 ()
             }
         }
     }
     
-    private func getAccountBalance(accountNum: Int){
+    private func getAccountBalance(accountNum: Int, completion: @escaping (_ result: Int)->()){
         let account = getAccount(accountNum: accountNum)
         if (account == nil) {return}
         getAccountBalance(forAccount: account!) { kin in
@@ -284,7 +288,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                 self.sendError(code: "-6", type: "GetAccountBalance", message: "Error getting the balance")
                 return
             }
-            self.sendReport(type: "GetAccountBalance", message: "Current balance of \(account!.publicAddress)", value: String(NSDecimalNumber(decimal: kin).intValue))
+            completion(NSDecimalNumber(decimal: kin).intValue)
         }
     }
     
