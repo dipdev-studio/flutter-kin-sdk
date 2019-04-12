@@ -16,6 +16,7 @@ class _MyAppState extends State<MyApp> {
   String _platformVersion = 'Unknown';
   String firstPublicAddress;
   String secondPublicAddress;
+  String recoveryString;
   int count = 0;
 
   @override
@@ -37,28 +38,23 @@ class _MyAppState extends State<MyApp> {
 
   Future streamReceiver(data) async {
     Info info = Info().fromJson(json.decode(data));
+    
 
     switch (info.type) {
       case "InitKinClient":
         print(info.message);
         firstPublicAddress = await FlutterKinSdk.createAccount();
-        secondPublicAddress = await FlutterKinSdk.createAccount();
+        print(firstPublicAddress);
+        // secondPublicAddress = await FlutterKinSdk.createAccount();
         break;
       case "CreateAccountOnPlaygroundBlockchain":
-        count++;
         print(info.type + " Wallet: " + info.value);
-        if (count == 2){
-          FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 10, "some", 5);
-        }
+        
+        print(await FlutterKinSdk.getAccountBalance(firstPublicAddress));
+        print(await FlutterKinSdk.getAccountState(firstPublicAddress));
         break;
       case "DeleteAccount":
         print(info.message);
-        break;
-      case "GetAccountState":
-        print(info.message);
-        break;
-      case "GetAccountBalance":
-        print(info.message + " Balance: " + info.value);
         break;
       case "SendTransaction":
         print(info.message + " Amount: " + info.value);

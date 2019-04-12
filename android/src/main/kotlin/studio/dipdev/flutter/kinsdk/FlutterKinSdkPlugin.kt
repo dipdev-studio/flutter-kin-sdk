@@ -9,8 +9,10 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
+import kin.base.Util
 import kin.sdk.*
 import kin.sdk.exception.CreateAccountException
+import kin.utils.ResultCallback
 
 
 class FlutterKinSdkPlugin(private var activity: Activity, private var context: Context) : MethodCallHandler {
@@ -55,9 +57,8 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
-
         if (call.method == "initKinClient") {
-            var isProduction: Boolean? = call.argument("isProduction")
+            isProduction = call.argument("isProduction")
             val appId: String? = call.argument("appId")
             if (isProduction == null) isProduction = false
             if (isProduction == true) {
@@ -65,7 +66,6 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 return
             }
             initKinClient(appId)
-            isKinInit = true
             sendReport("InitKinClient", "Kin init successful")
         } else {
             if (!isKinClientInit()) return
@@ -85,7 +85,8 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             call.method == "importAccount" -> {
                 val recoveryString: String? = call.argument("recoveryString") ?: return
                 val secretPassphrase: String? = call.argument("secretPassphrase") ?: return
-                val account: KinAccount? = importAccount(recoveryString!!, secretPassphrase!!) ?: return
+                val account: KinAccount? = importAccount(recoveryString!!, secretPassphrase!!)
+                        ?: return
                 result.success(account!!.publicAddress)
             }
 
@@ -93,18 +94,22 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 val publicAddress: String? = call.argument("publicAddress") ?: return
                 val secretPassphrase: String? = call.argument("secretPassphrase") ?: return
                 val accountNum: Int = getAccountNum(publicAddress!!) ?: return
-                val recoveryString: String? = exportAccount(accountNum, secretPassphrase!!) ?: return
+                val recoveryString: String? = exportAccount(accountNum, secretPassphrase!!)
+                        ?: return
                 result.success(recoveryString)
             }
 
             call.method == "getAccountBalance" -> {
-                var publicAddress: String? = call.argument("publicAddress") ?: return
+                val publicAddress: String? = call.argument("publicAddress") ?: return
+                val accountNum: Int = getAccountNum(publicAddress!!) ?: return
+                getAccountBalance(accountNum, fun(balance: Int) { result.success(balance) })
 
             }
 
             call.method == "getAccountState" -> {
-                var publicAddress: String? = call.argument("publicAddress") ?: return
-
+                val publicAddress: String? = call.argument("publicAddress") ?: return
+                val accountNum: Int = getAccountNum(publicAddress!!) ?: return
+                getAccountState(accountNum, fun(state: String) { result.success(state) })
             }
 
             call.method == "sendTransaction" -> {
@@ -132,6 +137,9 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         }
     }
 
+    private fun callback(balance: Int) {
+    }
+
     private fun initKinClient(appId: String? = null) {
         if (appId == null) return
         val network: Environment = if (isProduction == true) {
@@ -142,16 +150,18 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
         try {
             kinClient = KinClient(context, network, appId)
-        } catch (error:Throwable){
+            isKinInit = true
+        } catch (error: Throwable) {
             sendError("InitKinClient", error)
         }
 
         receiveAccountsPayments()
     }
 
-    private fun createAccount() : String? {
+    private fun createAccount(): String? {
         try {
-            val account:KinAccount = kinClient.addAccount()
+            val account: KinAccount = kinClient.addAccount()
+            if (!isProduction!!) createAccountOnPlayground(account)
             return account.publicAddress
         } catch (e: CreateAccountException) {
             val err = ErrorReport("CreateAccount", "Account creation exception")
@@ -160,33 +170,77 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         return null
     }
 
+    private fun createAccountOnPlayground(account: KinAccount) {
+        AccountOnPlayground().onBoard(account, object : AccountOnPlayground.Callbacks {
+            override fun onSuccess() {
+                sendReport("CreateAccountOnPlaygroundBlockchain", "Account in playground was created successfully", account.publicAddress)
+            }
+
+            override fun onFailure(e: Exception) {
+                sendError("CreateAccountOnPlaygroundBlockchain", e)
+            }
+        })
+    }
+
     private fun deleteAccount(accountNum: Int) {
         if (!isAccountCreated()) return
         try {
             kinClient.deleteAccount(accountNum)
             sendReport("DeleteAccount", "Account deletion was a success")
-        } catch (error:Throwable){
+        } catch (error: Throwable) {
             sendError("DeleteAccount", error)
         }
     }
 
-    private fun importAccount(json: String, secretPassphrase: String) : KinAccount? {
+    private fun importAccount(json: String, secretPassphrase: String): KinAccount? {
         try {
             return kinClient.importAccount(json, secretPassphrase)
-        } catch (error:Throwable){
+        } catch (error: Throwable) {
             sendError("ImportAccount", error)
         }
         return null
     }
 
-    private fun exportAccount(accountNum: Int, secretPassphrase: String) : String? {
+    private fun exportAccount(accountNum: Int, secretPassphrase: String): String? {
         val account = getAccount(accountNum) ?: return null
         try {
             return account.export(secretPassphrase)
-        } catch (error:Throwable){
+        } catch (error: Throwable) {
             sendError("ExportAccount", error)
         }
         return null
+    }
+
+    private fun getAccountBalance(accountNum: Int, completion: (balance: Int) -> Unit) {
+        val account = getAccount(accountNum) ?: return
+        account.balance.run(
+                object : ResultCallback<Balance> {
+                    override fun onResult(result: Balance) {
+                        completion(result.value().intValueExact())
+                    }
+
+                    override fun onError(e: Exception) {
+                        sendError("-6", "GetAccountBalance", "Error getting the balance")
+                    }
+                })
+    }
+
+    private fun getAccountState(accountNum: Int, completion: (state: String) -> Unit) {
+        val account = getAccount(accountNum) ?: return
+
+        account.status.run(
+                object : ResultCallback<Int> {
+                    override fun onResult(result: Int?) {
+                        when (result) {
+                            AccountStatus.CREATED -> completion("Account is created")
+                            AccountStatus.NOT_CREATED -> completion("Account is not created")
+                        }
+                    }
+
+                    override fun onError(e: Exception) {
+                        sendError("-15", "GetAccountState", e.localizedMessage)
+                    }
+                })
     }
 
     private fun receiveAccountsPayments() {
@@ -207,7 +261,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     }
 
     private fun isKinClientInit(): Boolean {
-        if (isKinInit) {
+        if (!isKinInit) {
             sendError("-14", "KinClientInit", "Kin client not inited")
             return false
         }
@@ -221,9 +275,9 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         return null
     }
 
-    private fun getAccountNum(publicAddress: String) : Int? {
+    private fun getAccountNum(publicAddress: String): Int? {
         if (kinClient.accountCount == 0) return null
-        for (index in 0 .. (kinClient.accountCount - 1)) {
+        for (index in 0..(kinClient.accountCount - 1)) {
             if (getAccount(index)?.publicAddress == publicAddress) {
                 return index
             }
@@ -250,7 +304,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         } catch (e: Throwable) {
             sendError("json", e)
         }
-        if (json != null) balanceCallback.success(json)
+        if (json != null) balanceCallback?.success(json)
     }
 
     private fun sendReport(type: String, message: String, value: String? = null) {
@@ -264,7 +318,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         } catch (e: Throwable) {
             sendError("json", e)
         }
-        if (json != null) infoCallback.success(json)
+        if (json != null) infoCallback?.success(json)
     }
 
     private fun sendError(type: String, error: Throwable) {
@@ -286,10 +340,18 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         } catch (e: Throwable) {
             sendError("json", e)
         }
-        if (json != null) infoCallback.error(code, message, json)
+        if (json != null) infoCallback?.error(code, message, json)
     }
 
     data class BalanceReport(val accountNum: Int, val amount: Long)
     data class InfoReport(val type: String, val message: String, val value: String? = null)
     data class ErrorReport(val type: String, val message: String)
+}
+
+interface OnStateDeterminated {
+    fun onClick()
+}
+
+interface OnBalanceDeterminated {
+    fun onClick()
 }
