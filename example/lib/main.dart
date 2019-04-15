@@ -33,25 +33,25 @@ class _MyAppState extends State<MyApp> {
       print(error);
     });
 
+    FlutterKinSdk.balanceStream.receiveBroadcastStream().listen((data) async{
+      print(data);
+    });
+
     FlutterKinSdk.initKinClient("wBu7");
   }
 
   Future streamReceiver(data) async {
     Info info = Info().fromJson(json.decode(data));
     
-
     switch (info.type) {
       case "InitKinClient":
         print(info.message);
         firstPublicAddress = await FlutterKinSdk.createAccount();
-        print(firstPublicAddress);
-        // secondPublicAddress = await FlutterKinSdk.createAccount();
+        secondPublicAddress = await FlutterKinSdk.createAccount();
         break;
       case "CreateAccountOnPlaygroundBlockchain":
         print(info.type + " Wallet: " + info.value);
-        
-        print(await FlutterKinSdk.getAccountBalance(firstPublicAddress));
-        print(await FlutterKinSdk.getAccountState(firstPublicAddress));
+        // FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 100, "some", 10);
         break;
       case "DeleteAccount":
         print(info.message);
@@ -64,6 +64,7 @@ class _MyAppState extends State<MyApp> {
         break;
       case "PaymentEvent":
         print(info.message + " Amount: " + info.value);
+        print(await FlutterKinSdk.getAccountBalance(secondPublicAddress));
         break;
     }
   }

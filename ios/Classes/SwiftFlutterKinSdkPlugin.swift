@@ -143,7 +143,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         } catch let error {
             sendError(type: "InitKinClient", error: error)
         }
-        receiveAccountsPayments()
+        receiveAccountsPaymentsAndBalanceChanges()
     }
     
     private func createAccount() -> String?{
@@ -151,6 +151,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             let account = try kinClient!.addAccount()
             let accountNum = getAccountNum(publicAddress: account.publicAddress)
             if (accountNum == nil) {return nil}
+            
             if (!isProduction!){
                 createAccountOnPlayground(account: account, accountNum: accountNum!) { (result: [String : Any]?) in
                     guard result != nil else {
@@ -161,11 +162,17 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                     self.sendReport(type: "CreateAccountOnPlaygroundBlockchain", message: "Account in playground was created successfully", value: account.publicAddress)
                 }
             }
+            
+            receiveAccountPayment(accountNum: accountNum!)
+            receiveBalanceChanges(accountNum: accountNum!)
+            
             return account.publicAddress
+            
         } catch {
             let err = ErrorReport(type: "CreateAccount", message: "Account creation exception")
             sendError(code: "-2", message: "Account creation exception", details: err)
         }
+        
         return nil
     }
     
@@ -214,7 +221,14 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func importAccount(json: String, secretPassphrase: String) -> KinAccount?{
         do {
-            return try kinClient!.importAccount(json, passphrase: secretPassphrase)
+            let account:KinAccount = try kinClient!.importAccount(json, passphrase: secretPassphrase)
+            
+            let accountNum = getAccountNum(publicAddress: account.publicAddress)
+            if (accountNum == nil) {return nil}
+            receiveAccountPayment(accountNum: accountNum!)
+            receiveBalanceChanges(accountNum: accountNum!)
+            
+            return account
         }
         catch let error {
             sendError(type: "ImportAccount", error: error)
@@ -427,10 +441,11 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     //TODO Release method
     //private func fund(amount: Kin) -> Promise<Bool> {}
     
-    private func receiveAccountsPayments() {
+    private func receiveAccountsPaymentsAndBalanceChanges() {
         if(!isKinClientInit() || kinClient?.accounts.count == 0){return}
         for index in 0...((kinClient?.accounts.count)! - 1) {
             receiveAccountPayment(accountNum: index)
+            receiveBalanceChanges(accountNum: index)
         }
     }
     
@@ -450,7 +465,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func balanceChanged(accountNum: Int) {
+    private func receiveBalanceChanges(accountNum: Int) {
         let linkBag = LinkBag()
         let watch: BalanceWatch
         
@@ -459,7 +474,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             watch = try kinClient!.accounts[accountNum]!.watchBalance(nil)
             watch.emitter
                 .on(next: {
-                    self.sendBalance(accountNum: accountNum, amount: ($0 as NSDecimalNumber).intValue)
+                    self.sendBalance(publicAddress: self.kinClient!.accounts[accountNum]!.publicAddress, amount: ($0 as NSDecimalNumber).intValue)
                 })
                 .add(to: linkBag)
         } catch {
@@ -475,8 +490,8 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         return true
     }
     
-    private func sendBalance(accountNum: Int, amount: Int) {
-        let balanceReport = BalanceReport(accountNum: accountNum, amount: amount)
+    private func sendBalance(publicAddress: String, amount: Int) {
+        let balanceReport = BalanceReport(publicAddress: publicAddress, amount: amount)
         let encoder = JSONEncoder()
         var data: Data? = nil
         do {
@@ -551,7 +566,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     }
     
     struct BalanceReport:Encodable {
-        let accountNum: Int
+        let publicAddress: String
         let amount: Int
     }
     

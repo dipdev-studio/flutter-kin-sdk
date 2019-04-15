@@ -155,14 +155,20 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             sendError("InitKinClient", error)
         }
 
-        receiveAccountsPayments()
+        receiveAccountsPaymentsAndBalanceChanges()
     }
 
     private fun createAccount(): String? {
         try {
             val account: KinAccount = kinClient.addAccount()
             if (!isProduction!!) createAccountOnPlayground(account)
+
+            val accountNum = getAccountNum(account.publicAddress!!)?: return null
+            receiveAccountPayment(accountNum)
+            receiveBalanceChanges(accountNum)
+
             return account.publicAddress
+
         } catch (e: CreateAccountException) {
             val err = ErrorReport("CreateAccount", "Account creation exception")
             sendError("-2", "Account creation exception", err)
@@ -194,7 +200,13 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     private fun importAccount(json: String, secretPassphrase: String): KinAccount? {
         try {
-            return kinClient.importAccount(json, secretPassphrase)
+            val account: KinAccount = kinClient.importAccount(json, secretPassphrase)
+
+            val accountNum = getAccountNum(account.publicAddress!!)?: return null
+            receiveAccountPayment(accountNum)
+            receiveBalanceChanges(accountNum)
+
+            return account
         } catch (error: Throwable) {
             sendError("ImportAccount", error)
         }
@@ -243,12 +255,12 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 })
     }
 
-    private fun receiveAccountsPayments() {
-        if ((!isKinClientInit() || kinClient.accountCount == 0)) {
-            return
-        }
+    private fun receiveAccountsPaymentsAndBalanceChanges() {
+        if (!isKinClientInit() || kinClient.accountCount == 0) return
+
         for (index in 0 until kinClient.accountCount) {
             receiveAccountPayment(index)
+            receiveBalanceChanges(index)
         }
     }
 
@@ -258,6 +270,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             sendReport("PaymentEvent", String.format("to = %s, from = %s", payment.sourcePublicKey(),
                     payment.destinationPublicKey()), payment.amount().toPlainString())
         }
+    }
+
+    private fun receiveBalanceChanges(accountNum: Int) {
+        val account: KinAccount = getAccount(accountNum) ?: return
+        account.addBalanceListener { balance -> sendBalance(account.publicAddress!!, balance.value().longValueExact()) }
     }
 
     private fun isKinClientInit(): Boolean {
@@ -296,8 +313,8 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     }
 
 
-    private fun sendBalance(accountNum: Int, amount: Long) {
-        val balanceReport = BalanceReport(accountNum, amount)
+    private fun sendBalance(publicAddress: String, amount: Long) {
+        val balanceReport = BalanceReport(publicAddress, amount)
         var json: String? = null
         try {
             json = Gson().toJson(balanceReport)
@@ -343,15 +360,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         if (json != null) infoCallback?.error(code, message, json)
     }
 
-    data class BalanceReport(val accountNum: Int, val amount: Long)
+    data class BalanceReport(val publicAddress: String, val amount: Long)
     data class InfoReport(val type: String, val message: String, val value: String? = null)
     data class ErrorReport(val type: String, val message: String)
-}
-
-interface OnStateDeterminated {
-    fun onClick()
-}
-
-interface OnBalanceDeterminated {
-    fun onClick()
 }
