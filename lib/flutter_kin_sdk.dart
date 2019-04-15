@@ -14,7 +14,7 @@ class FlutterKinSdk {
   static StreamController<Info> _streamInfoController =
       new StreamController.broadcast();
 
-  static StreamController<int> _streamBalanceController =
+  static StreamController<BalanceReport> _streamBalanceController =
       new StreamController.broadcast();
 
   static initStreams() {
@@ -22,19 +22,18 @@ class FlutterKinSdk {
       Info info = Info.fromJson(json.decode(data));
       _streamInfoController.add(info);
     }, onError: (error) {
-      Error err = new Error(
-          error.code, error.message, Info.fromJson(json.decode(error.details)));
-      throw err;
+      Error err = Error.fromJson(json.decode(error.details));
+      throw PlatformException(code: error.code, message: error.message, details: err);
     });
 
     _streamBalance.receiveBroadcastStream().listen((data) {
-      _streamBalanceController.add(int.parse(data.toString()));
+      _streamBalanceController.add(BalanceReport.fromJson(json.decode(data)));
     }, onError: (error) {
       throw error;
     });
   }
 
-  static StreamController<int> get balanceStream {
+  static StreamController<BalanceReport> get balanceStream {
     return _streamBalanceController;
   }
 
@@ -42,8 +41,9 @@ class FlutterKinSdk {
     return _streamInfoController;
   }
 
-  static Future initKinClient(String appId,
+  static void initKinClient(String appId,
       {bool isProduction = false, String serverUrl}) async {
+    initStreams();
     Map<String, dynamic> params = <String, dynamic>{
       'appId': appId,
       'isProduction': isProduction,
@@ -58,7 +58,7 @@ class FlutterKinSdk {
     return await _methodChannel.invokeMethod('createAccount');
   }
 
-  static Future deleteAccount(String publicAddress) async {
+  static void deleteAccount(String publicAddress) async {
     Map<String, dynamic> params = <String, dynamic>{
       'publicAddress': publicAddress,
     };
@@ -104,7 +104,7 @@ class FlutterKinSdk {
     return AccountStates.NotCreated;
   }
 
-  static Future sendTransaction(String publicAddress, String toAddress,
+  static void sendTransaction(String publicAddress, String toAddress,
       int kinAmount, String memo, int fee) async {
     Map<String, dynamic> params = <String, dynamic>{
       'publicAddress': publicAddress,
@@ -117,7 +117,7 @@ class FlutterKinSdk {
     await _methodChannel.invokeMethod('sendTransaction', params);
   }
 
-  static Future sendWhitelistTransaction(
+  static void sendWhitelistTransaction(
       String publicAddress,
       String whitelistServiceUrl,
       String toAddress,
@@ -136,13 +136,13 @@ class FlutterKinSdk {
     await _methodChannel.invokeMethod('sendWhitelistTransaction', params);
   }
 
-  static Future<String> fund(String publicAddress, int kinAmount) async {
+  static Future<String> earn(String publicAddress, int kinAmount) async {
     Map<String, dynamic> params = <String, dynamic>{
       'publicAddress': publicAddress,
       'kinAmount': kinAmount,
     };
     // getting response by stream
-    return await _methodChannel.invokeMethod('fund');
+    return await _methodChannel.invokeMethod('earn');
   }
 }
 

@@ -134,7 +134,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             url = serverUrl!
             network = .mainNet
         }else{
-            url = "http://horizon-testnet.kininfrastructure.com"
+            url = "https://horizon-testnet.kininfrastructure.com"
             network = .playground
         }
         guard let providerUrl = URL(string: url) else {return}
