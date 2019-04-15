@@ -1,9 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'dart:async';
-
 import 'package:flutter_kin_sdk/flutter_kin_sdk.dart';
+import 'package:flutter_kin_sdk/lib_utils.dart';
 
 void main() => runApp(MyApp());
 
@@ -26,28 +23,30 @@ class _MyAppState extends State<MyApp> {
   }
 
   // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    FlutterKinSdk.infoStream.receiveBroadcastStream().listen((data) async {
+  void initPlatformState() async {
+    FlutterKinSdk.infoStream.stream.listen((data) async {
       streamReceiver(data);
     }, onError: (error) {
       print(error);
     });
 
-    FlutterKinSdk.balanceStream.receiveBroadcastStream().listen((data) async{
-      print(data);
+    FlutterKinSdk.balanceStream.stream.listen((BalanceReport balanceReport) async{
+      if (balanceReport.publicAddress == firstPublicAddress){
+        print(balanceReport.amount);
+      }
+    }, onError: (error) {
+      print(error);
     });
 
     FlutterKinSdk.initKinClient("wBu7");
   }
 
-  Future streamReceiver(data) async {
-    Info info = Info().fromJson(json.decode(data));
-    
+  void streamReceiver(Info info) async {
     switch (info.type) {
       case "InitKinClient":
         print(info.message);
-        firstPublicAddress = await FlutterKinSdk.createAccount();
-        secondPublicAddress = await FlutterKinSdk.createAccount();
+//        firstPublicAddress = await FlutterKinSdk.createAccount();
+//        secondPublicAddress = await FlutterKinSdk.createAccount();
         break;
       case "CreateAccountOnPlaygroundBlockchain":
         print(info.type + " Wallet: " + info.value);
@@ -81,23 +80,5 @@ class _MyAppState extends State<MyApp> {
         ),
       ),
     );
-  }
-}
-
-class Info {
-  String type;
-  String message;
-  String value;
-
-  Info fromJson(Map<dynamic, dynamic> raw) {
-    Map<String, dynamic> json = Map<String, dynamic>.from(raw);
-
-    if (json['type'] != null) type = json['type'];
-
-    if (json['message'] != null) message = json['message'];
-
-    if (json['value'] != null) value = json['value'];
-
-    return this;
   }
 }
