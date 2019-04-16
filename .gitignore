@@ -18,3 +18,4 @@ example/ios/Runner.xcodeproj/project.pbxproj
 example/android/app/.settings/org.eclipse.buildship.core.prefs
 example/android/app/.classpath
 example/android/app/.project
+.vscode/launch.json
