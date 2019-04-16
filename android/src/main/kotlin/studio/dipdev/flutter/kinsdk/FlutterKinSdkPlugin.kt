@@ -17,7 +17,7 @@ import kin.utils.ResultCallback
 class FlutterKinSdkPlugin(private var activity: Activity, private var context: Context) : MethodCallHandler {
 
     private lateinit var kinClient: KinClient
-    private var isProduction: Boolean? = null
+    private var isProduction: Boolean = false
     private var isKinInit = false
 
     companion object {
@@ -57,10 +57,10 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         if (call.method == "initKinClient") {
-            isProduction = call.argument("isProduction")
-            val appId: String? = call.argument("appId")
-            if (isProduction == null) isProduction = false
-            if (isProduction == true) {
+            val isProduction : Boolean? = call.argument("isProduction") ?: return
+            val appId: String? = call.argument("appId") ?: return
+            if (isProduction!!) this.isProduction = true
+            if (this.isProduction) {
                 sendError("-0", "initKinClient", "Sorry, but the production network is not implemented in this version of plugin")
                 return
             }
@@ -76,56 +76,56 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             }
 
             call.method == "deleteAccount" -> {
-                val publicAddress: String? = call.argument("publicAddress") ?: return
-                val accountNum: Int = getAccountNum(publicAddress!!) ?: return
+                val publicAddress: String = call.argument("publicAddress") ?: return
+                val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
                 deleteAccount(accountNum)
             }
 
             call.method == "importAccount" -> {
-                val recoveryString: String? = call.argument("recoveryString") ?: return
-                val secretPassphrase: String? = call.argument("secretPassphrase") ?: return
-                val account: KinAccount? = importAccount(recoveryString!!, secretPassphrase!!)
+                val recoveryString: String = call.argument("recoveryString") ?: return
+                val secretPassphrase: String = call.argument("secretPassphrase") ?: return
+                val account: KinAccount? = importAccount(recoveryString, secretPassphrase)
                         ?: return
                 result.success(account!!.publicAddress)
             }
 
             call.method == "exportAccount" -> {
-                val publicAddress: String? = call.argument("publicAddress") ?: return
-                val secretPassphrase: String? = call.argument("secretPassphrase") ?: return
-                val accountNum: Int = getAccountNum(publicAddress!!) ?: return
-                val recoveryString: String? = exportAccount(accountNum, secretPassphrase!!)
+                val publicAddress: String = call.argument("publicAddress") ?: return
+                val secretPassphrase: String = call.argument("secretPassphrase") ?: return
+                val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
+                val recoveryString: String? = exportAccount(accountNum, secretPassphrase)
                         ?: return
                 result.success(recoveryString)
             }
 
             call.method == "getAccountBalance" -> {
-                val publicAddress: String? = call.argument("publicAddress") ?: return
-                val accountNum: Int = getAccountNum(publicAddress!!) ?: return
+                val publicAddress: String = call.argument("publicAddress") ?: return
+                val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
                 getAccountBalance(accountNum, fun(balance: Long) { result.success(balance) })
             }
 
             call.method == "getAccountState" -> {
-                val publicAddress: String? = call.argument("publicAddress") ?: return
-                val accountNum: Int = getAccountNum(publicAddress!!) ?: return
+                val publicAddress: String = call.argument("publicAddress") ?: return
+                val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
                 getAccountState(accountNum, fun(state: String) { result.success(state) })
             }
 
             call.method == "sendTransaction" -> {
-                var publicAddress: String? = call.argument("publicAddress") ?: return
-                var toAddress: String? = call.argument("toAddress") ?: return
-                var kinAmount: Int? = call.argument("kinAmount") ?: return
+                var publicAddress: String = call.argument("publicAddress") ?: return
+                var toAddress: String = call.argument("toAddress") ?: return
+                var kinAmount: Int?= call.argument("kinAmount") ?: return
                 var memo: String? = call.argument("memo")
-                var fee: Int? = call.argument("fee") ?: return
+                var fee: Int = call.argument("fee") ?: return
 
             }
 
             call.method == "sendWhitelistTransaction" -> {
-                var publicAddress: String? = call.argument("publicAddress") ?: return
-                var whitelistServiceUrl: String? = call.argument("whitelistServiceUrl") ?: return
-                var toAddress: String? = call.argument("toAddress") ?: return
-                var kinAmount: Int? = call.argument("kinAmount") ?: return
+                var publicAddress: String = call.argument("publicAddress") ?: return
+                var whitelistServiceUrl: String = call.argument("whitelistServiceUrl") ?: return
+                var toAddress: String = call.argument("toAddress") ?: return
+                var kinAmount: Int = call.argument("kinAmount") ?: return
                 var memo: String? = call.argument("memo")
-                var fee: Int? = call.argument("fee") ?: return
+                var fee: Int = call.argument("fee") ?: return
 
             }
 
@@ -135,12 +135,9 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         }
     }
 
-    private fun callback(balance: Int) {
-    }
-
     private fun initKinClient(appId: String? = null) {
         if (appId == null) return
-        val network: Environment = if (isProduction == true) {
+        val network: Environment = if (isProduction) {
             Environment.PRODUCTION
         } else {
             Environment.TEST
@@ -159,11 +156,17 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     private fun createAccount(): String? {
         try {
             val account: KinAccount = kinClient.addAccount()
-            if (!isProduction!!) createAccountOnPlayground(account)
 
-            val accountNum = getAccountNum(account.publicAddress!!) ?: return null
-            receiveAccountPayment(accountNum)
-            receiveBalanceChanges(accountNum)
+            if (!isProduction) {
+                createAccountOnPlayground(account)
+            } else {
+
+                val publicAddress = account.publicAddress ?: return null
+                val accountNum = getAccountIndexByPublicAddress(publicAddress) ?: return null
+
+                receiveAccountPayment(accountNum)
+                receiveBalanceChanges(accountNum)
+            }
 
             return account.publicAddress
 
@@ -177,6 +180,12 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     private fun createAccountOnPlayground(account: KinAccount) {
         AccountOnPlayground().onBoard(account, object : AccountOnPlayground.Callbacks {
             override fun onSuccess() {
+
+                val publicAddress = account.publicAddress ?: return
+                val accountNum = getAccountIndexByPublicAddress(publicAddress) ?: return
+
+                receiveAccountPayment(accountNum)
+                receiveBalanceChanges(accountNum)
                 sendReport("CreateAccountOnPlaygroundBlockchain", "Account in playground was created successfully", account.publicAddress)
             }
 
@@ -200,7 +209,9 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             val account: KinAccount = kinClient.importAccount(json, secretPassphrase)
 
-            val accountNum = getAccountNum(account.publicAddress!!) ?: return null
+            val publicAddress = account.publicAddress ?: return null
+            val accountNum = getAccountIndexByPublicAddress(publicAddress) ?: return null
+
             receiveAccountPayment(accountNum)
             receiveBalanceChanges(accountNum)
 
@@ -277,7 +288,8 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             sendBalance(publicAddress, balance)
         })
         account.addBalanceListener { balance ->
-            sendBalance(publicAddress, balance.value().longValueExact()) }
+            sendBalance(publicAddress, balance.value().longValueExact())
+        }
     }
 
     private fun isKinClientInit(): Boolean {
@@ -295,7 +307,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         return null
     }
 
-    private fun getAccountNum(publicAddress: String): Int? {
+    private fun getAccountIndexByPublicAddress(publicAddress: String): Int? {
         if (kinClient.accountCount == 0) return null
         for (index in 0 until kinClient.accountCount) {
             if (getAccount(index)?.publicAddress == publicAddress) {

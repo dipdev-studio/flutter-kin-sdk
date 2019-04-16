@@ -16,19 +16,17 @@ class Info {
 
 class Error {
   String code;
+  String type;
   String message;
-  Info details;
 
-  Error(this.code, this.message, this.details);
+  Error(this.type, this.message);
 
   Error.fromJson(Map<dynamic, dynamic> raw) {
     Map<String, dynamic> json = Map<String, dynamic>.from(raw);
 
-    if (json['code'] != null) code = json['code'];
+    if (json['type'] != null) type = json['type'];
 
     if (json['message'] != null) message = json['message'];
-
-    if (json['details'] != null) details = json['details'];
   }
 }
 
