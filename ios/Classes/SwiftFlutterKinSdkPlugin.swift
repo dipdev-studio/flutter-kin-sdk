@@ -7,7 +7,7 @@ import KinUtil
 public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private var kinClient : KinClient?
-    private var isProduction : Bool?
+    private var isProduction = false
     
     static let balanceFlutterController = FlutterStreamController()
     static let infoFlutterController = FlutterStreamController()
@@ -25,11 +25,10 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         if(call.method.elementsEqual("initKinClient")){
             let arguments = call.arguments as? NSDictionary
-            isProduction = arguments!["isProduction"] as? Bool
+            isProduction = arguments!["isProduction"] as! Bool
             let appId = arguments!["appId"] as? String
             let serverUrl = arguments!["serverUrl"] as? String
-            if (isProduction == nil) {isProduction = false}
-            if(isProduction == true) {
+            if(isProduction) {
                 sendError(code: "-0", type: "initKinClient", message: "Sorry, but the production network is not implemented in this version of plugin")
                 return
             }
@@ -134,7 +133,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             url = serverUrl!
             network = .mainNet
         }else{
-            url = "https://horizon-testnet.kininfrastructure.com"
+            url = "http://horizon-testnet.kininfrastructure.com"
             network = .playground
         }
         guard let providerUrl = URL(string: url) else {return}
@@ -152,19 +151,21 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             let accountNum = getAccountNum(publicAddress: account.publicAddress)
             if (accountNum == nil) {return nil}
             
-            if (!isProduction!){
+            if (!isProduction){
                 createAccountOnPlayground(account: account, accountNum: accountNum!) { (result: [String : Any]?) in
                     guard result != nil else {
                         self.sendError(code: "-1", type: "CreateAccountOnPlaygroundBlockchain", message: "Account creation on playground blockchain failed and account has already deleted")
                         self.deleteAccount(accountNum: accountNum!)
                         return
                     }
+                    self.receiveAccountPayment(accountNum: accountNum!)
+                    self.receiveBalanceChanges(accountNum: accountNum!)
                     self.sendReport(type: "CreateAccountOnPlaygroundBlockchain", message: "Account in playground was created successfully", value: account.publicAddress)
                 }
+            }else{
+                receiveAccountPayment(accountNum: accountNum!)
+                receiveBalanceChanges(accountNum: accountNum!)
             }
-            
-            receiveAccountPayment(accountNum: accountNum!)
-            receiveBalanceChanges(accountNum: accountNum!)
             
             return account.publicAddress
             
@@ -479,6 +480,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                 .add(to: linkBag)
         } catch {
             sendError(code: "-12", type: "BalanceChange", message: "Balance change exception")
+        }
+        getAccountBalance(accountNum: accountNum){ (balance) -> () in
+            self.sendBalance(publicAddress: self.kinClient!.accounts[accountNum]!.publicAddress, amount: balance)
         }
     }
     

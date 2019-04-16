@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_kin_sdk/flutter_kin_sdk.dart';
 import 'package:flutter_kin_sdk/lib_utils.dart';
 
@@ -26,16 +27,15 @@ class _MyAppState extends State<MyApp> {
   void initPlatformState() async {
     FlutterKinSdk.infoStream.stream.listen((data) async {
       streamReceiver(data);
-    }, onError: (error) {
-      print(error);
+    }, onError: (error){
+      throw PlatformException(code: error.code, message: error.type, details: error.message);
     });
 
-    FlutterKinSdk.balanceStream.stream.listen((BalanceReport balanceReport) async{
-      if (balanceReport.publicAddress == firstPublicAddress){
+    FlutterKinSdk.balanceStream.stream.listen(
+        (BalanceReport balanceReport) async {
+      if (balanceReport.publicAddress == firstPublicAddress) {
         print(balanceReport.amount);
       }
-    }, onError: (error) {
-      print(error);
     });
 
     FlutterKinSdk.initKinClient("wBu7");
@@ -45,12 +45,12 @@ class _MyAppState extends State<MyApp> {
     switch (info.type) {
       case "InitKinClient":
         print(info.message);
-//        firstPublicAddress = await FlutterKinSdk.createAccount();
-//        secondPublicAddress = await FlutterKinSdk.createAccount();
+        firstPublicAddress = await FlutterKinSdk.createAccount();
+       secondPublicAddress = await FlutterKinSdk.createAccount();
         break;
       case "CreateAccountOnPlaygroundBlockchain":
         print(info.type + " Wallet: " + info.value);
-        // FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 100, "some", 10);
+        FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 100, "some", 1000);
         break;
       case "DeleteAccount":
         print(info.message);

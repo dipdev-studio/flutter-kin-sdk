@@ -23,7 +23,8 @@ class FlutterKinSdk {
       _streamInfoController.add(info);
     }, onError: (error) {
       Error err = Error.fromJson(json.decode(error.details));
-      throw PlatformException(code: error.code, message: error.message, details: err);
+      err.code = error.code;
+      _streamInfoController.addError(err);
     });
 
     _streamBalance.receiveBroadcastStream().listen((data) {
