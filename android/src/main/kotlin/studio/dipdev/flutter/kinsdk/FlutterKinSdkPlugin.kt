@@ -57,9 +57,9 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         if (call.method == "initKinClient") {
-            val isProduction : Boolean? = call.argument("isProduction") ?: return
-            val appId: String? = call.argument("appId") ?: return
-            if (isProduction!!) this.isProduction = true
+            val isProductionInput : Boolean? = call.argument("isProduction")
+            val appId: String = call.argument("appId") ?: return
+            if (isProductionInput != null) this.isProduction = isProductionInput
             if (this.isProduction) {
                 sendError("-0", "initKinClient", "Sorry, but the production network is not implemented in this version of plugin")
                 return
