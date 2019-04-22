@@ -34,7 +34,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             val instance = FlutterKinSdkPlugin(registrar.activity(), registrar.activity().applicationContext)
             channel.setMethodCallHandler(instance)
 
-            EventChannel(registrar.view(), "flutter_kin_sdk_balance").setStreamHandler(
+            EventChannel(registrar.view(), Constants.FLUTTER_KIN_SDK_BALANCE.value).setStreamHandler(
                     object : EventChannel.StreamHandler {
                         override fun onListen(args: Any?, events: EventChannel.EventSink) {
                             balanceCallback = events
@@ -45,7 +45,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                     }
             )
 
-            EventChannel(registrar.view(), "flutter_kin_sdk_info").setStreamHandler(
+            EventChannel(registrar.view(), Constants.FLUTTER_KIN_SDK_INFO.value).setStreamHandler(
                     object : EventChannel.StreamHandler {
                         override fun onListen(args: Any?, events: EventChannel.EventSink) {
                             infoCallback = events
@@ -60,32 +60,32 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
-        if (call.method == Constants.INIT_KIN_CLIENT.name) {
+        if (call.method == Constants.INIT_KIN_CLIENT.value) {
             val isProductionInput: Boolean? = call.argument("isProduction")
             val appId: String = call.argument("appId") ?: return
             if (isProductionInput != null) this.isProduction = isProductionInput
             if (this.isProduction) {
-                sendError("-0", Constants.INIT_KIN_CLIENT.name, "Sorry, but the production network is not implemented in this version of plugin")
+                sendError("-0", Constants.INIT_KIN_CLIENT.value, "Sorry, but the production network is not implemented in this version of plugin")
                 return
             }
             initKinClient(appId)
-            sendReport(Constants.INIT_KIN_CLIENT.name, "Kin init successful")
+            sendReport(Constants.INIT_KIN_CLIENT.value, "Kin init successful")
         } else {
             if (!isKinClientInit()) return
         }
 
         when {
-            call.method == Constants.CREATE_ACCOUNT.name -> {
+            call.method == Constants.CREATE_ACCOUNT.value -> {
                 result.success(createAccount())
             }
 
-            call.method == Constants.DELETE_ACCOUNT.name -> {
+            call.method == Constants.DELETE_ACCOUNT.value -> {
                 val publicAddress: String = call.argument("publicAddress") ?: return
                 val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
                 deleteAccount(accountNum)
             }
 
-            call.method == Constants.IMPORT_ACCOUNT.name -> {
+            call.method == Constants.IMPORT_ACCOUNT.value -> {
                 val recoveryString: String = call.argument("recoveryString") ?: return
                 val secretPassphrase: String = call.argument("secretPassphrase") ?: return
                 val account: KinAccount? = importAccount(recoveryString, secretPassphrase)
@@ -93,7 +93,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 result.success(account!!.publicAddress)
             }
 
-            call.method == Constants.EXPORT_ACCOUNT.name -> {
+            call.method == Constants.EXPORT_ACCOUNT.value -> {
                 val publicAddress: String = call.argument("publicAddress") ?: return
                 val secretPassphrase: String = call.argument("secretPassphrase") ?: return
                 val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
@@ -102,19 +102,19 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 result.success(recoveryString)
             }
 
-            call.method == Constants.GET_ACCOUNT_BALANCE.name -> {
+            call.method == Constants.GET_ACCOUNT_BALANCE.value -> {
                 val publicAddress: String = call.argument("publicAddress") ?: return
                 val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
                 getAccountBalance(accountNum, fun(balance: BigDecimal) { result.success(balance.toInt()) })
             }
 
-            call.method == Constants.GET_ACCOUNT_STATE.name -> {
+            call.method == Constants.GET_ACCOUNT_STATE.value -> {
                 val publicAddress: String = call.argument("publicAddress") ?: return
                 val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
                 getAccountState(accountNum, fun(state: String) { result.success(state) })
             }
 
-            call.method == Constants.SEND_TRANSACTION.name -> {
+            call.method == Constants.SEND_TRANSACTION.value -> {
                 val publicAddress: String = call.argument("publicAddress") ?: return
                 val toAddress: String = call.argument("toAddress") ?: return
                 val kinAmount: Int = call.argument("kinAmount") ?: return
@@ -124,7 +124,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 sendTransaction(accountNum, toAddress, kinAmount, memo, fee)
             }
 
-            call.method == Constants.SEND_WHITELIST_TRANSACTION -> {
+            call.method == Constants.SEND_WHITELIST_TRANSACTION.value -> {
                 var publicAddress: String = call.argument("publicAddress") ?: return
                 var whitelistServiceUrl: String = call.argument("whitelistServiceUrl") ?: return
                 var toAddress: String = call.argument("toAddress") ?: return
@@ -134,7 +134,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
             }
 
-            call.method == Constants.FUND.name -> {
+            call.method == Constants.EARN.value -> {
                 //TODO
             }
         }
@@ -152,7 +152,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             kinClient = KinClient(context, network, appId)
             isKinInit = true
         } catch (error: Throwable) {
-            sendError(Constants.INIT_KIN_CLIENT.name, error)
+            sendError(Constants.INIT_KIN_CLIENT.value, error)
         }
 
         receiveAccountsPaymentsAndBalanceChanges()
@@ -176,7 +176,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             return account.publicAddress
 
         } catch (e: CreateAccountException) {
-            val err = ErrorReport(Constants.CREATE_ACCOUNT.name, "Account creation exception")
+            val err = ErrorReport(Constants.CREATE_ACCOUNT.value, "Account creation exception")
             sendError("-2", "Account creation exception", err)
         }
         return null
@@ -191,11 +191,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
                 receiveAccountPayment(accountNum)
                 receiveBalanceChanges(accountNum)
-                sendReport(Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.name, "Account in playground was created successfully", account.publicAddress)
+                sendReport(Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.value, "Account in playground was created successfully", account.publicAddress)
             }
 
             override fun onFailure(e: Exception) {
-                sendError(Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.name, e)
+                sendError(Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.value, e)
             }
         })
     }
@@ -204,9 +204,9 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         if (!isAccountCreated()) return
         try {
             kinClient.deleteAccount(accountNum)
-            sendReport(Constants.DELETE_ACCOUNT.name, "Account deletion was a success")
+            sendReport(Constants.DELETE_ACCOUNT.value, "Account deletion was a success")
         } catch (error: Throwable) {
-            sendError(Constants.DELETE_ACCOUNT.name, error)
+            sendError(Constants.DELETE_ACCOUNT.value, error)
         }
     }
 
@@ -222,7 +222,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
             return account
         } catch (error: Throwable) {
-            sendError(Constants.IMPORT_ACCOUNT.name, error)
+            sendError(Constants.IMPORT_ACCOUNT.value, error)
         }
         return null
     }
@@ -232,7 +232,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             return account.export(secretPassphrase)
         } catch (error: Throwable) {
-            sendError(Constants.EXPORT_ACCOUNT.name, error)
+            sendError(Constants.EXPORT_ACCOUNT.value, error)
         }
         return null
     }
@@ -246,7 +246,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                     }
 
                     override fun onError(e: Exception) {
-                        sendError("-6", Constants.GET_ACCOUNT_BALANCE.name, "Error getting the balance")
+                        sendError("-6", Constants.GET_ACCOUNT_BALANCE.value, "Error getting the balance", true)
                     }
                 })
     }
@@ -264,7 +264,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                     }
 
                     override fun onError(e: Exception) {
-                        sendError("-15", Constants.GET_ACCOUNT_STATE.name, e.localizedMessage)
+                        sendError("-15", Constants.GET_ACCOUNT_STATE.value, e.localizedMessage)
                     }
                 })
     }
@@ -282,17 +282,17 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 sendTransactionRequest.run(object : ResultCallback<TransactionId> {
 
                     override fun onResult(id: TransactionId) {
-                        sendReport(Constants.SEND_TRANSACTION.name, "Transaction was sent successfully", kinAmount.toString())
+                        sendReport(Constants.SEND_TRANSACTION.value, "Transaction was sent successfully", kinAmount.toString())
                     }
 
                     override fun onError(e: Exception) {
-                        sendError(Constants.SEND_TRANSACTION.name, e)
+                        sendError(Constants.SEND_TRANSACTION.value, e)
                     }
                 })
             }
 
             override fun onError(e: Exception) {
-                sendError(Constants.SEND_TRANSACTION.name, e)
+                sendError(Constants.SEND_TRANSACTION.value, e)
             }
         })
     }
@@ -309,7 +309,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     private fun receiveAccountPayment(accountNum: Int) {
         val account: KinAccount = getAccount(accountNum) ?: return
         account.addPaymentListener { payment ->
-            sendReport(Constants.PAYMENT_EVENT.name, String.format("to = %s, from = %s", payment.sourcePublicKey(),
+            sendReport(Constants.PAYMENT_EVENT.value, String.format("to = %s, from = %s", payment.sourcePublicKey(),
                     payment.destinationPublicKey()), payment.amount().toPlainString())
         }
     }
@@ -327,7 +327,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     private fun isKinClientInit(): Boolean {
         if (!isKinInit) {
-            sendError("-14", Constants.INIT_KIN_CLIENT.name, "Kin client not inited")
+            sendError("-14", Constants.INIT_KIN_CLIENT.value, "Kin client not inited")
             return false
         }
         return true
@@ -347,14 +347,14 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 return index
             }
         }
-        sendError("-13", Constants.ACCOUNT_STATE_CHECK.name, "Account is not created")
+        sendError("-13", Constants.ACCOUNT_STATE_CHECK.value, "Account is not created")
         return null
     }
 
 
     private fun isAccountCreated(accountNum: Int = 0): Boolean {
         if (kinClient.accountCount < accountNum) {
-            sendError("-13", Constants.ACCOUNT_STATE_CHECK.name, "Account is not created")
+            sendError("-13", Constants.ACCOUNT_STATE_CHECK.value, "Account is not created")
             return false
         }
         return true
@@ -367,7 +367,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             json = Gson().toJson(balanceReport)
         } catch (e: Throwable) {
-            sendError("json", e)
+            sendError(Constants.SEND_BALANCE_JSON.value, e)
         }
         if (json != null) balanceCallback.success(json)
     }
@@ -381,7 +381,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         try {
             json = Gson().toJson(infoReport)
         } catch (e: Throwable) {
-            sendError("json", e)
+            sendError(Constants.SEND_INFO_JSON.value, e)
         }
         if (json != null) infoCallback.success(json)
     }
@@ -393,26 +393,34 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         sendError(message, error.localizedMessage, err)
     }
 
-    private fun sendError(code: String, type: String, message: String) {
+    private fun sendError(code: String, type: String, message: String, isBalance: Boolean = false) {
         val err = ErrorReport(type, message)
-        sendError(code, message, err)
+        sendError(code, message, err, isBalance)
     }
 
-    private fun sendError(code: String, message: String?, details: ErrorReport) {
+    private fun sendError(code: String, message: String?, details: ErrorReport, isBalance: Boolean = false) {
         var json: String? = null
         try {
             json = Gson().toJson(details)
         } catch (e: Throwable) {
-            sendError("json", e)
+            sendError(Constants.SEND_ERROR_JSON.value, e)
         }
-        if (json != null) infoCallback.error(code, message, json)
+        if (json != null){
+            if (!isBalance)
+                infoCallback.error(code, message, json)
+            else
+                balanceCallback.error(code, message, json)
+        }
     }
 
     data class BalanceReport(val publicAddress: String, val amount: Int)
     data class InfoReport(val type: String, val message: String, val value: String? = null)
     data class ErrorReport(val type: String, val message: String)
 
-    enum class Constants(type: String) {
+    enum class Constants(val value: String) {
+        FLUTTER_KIN_SDK("flutter_kin_sdk"),
+        FLUTTER_KIN_SDK_BALANCE("flutter_kin_sdk_balance"),
+        FLUTTER_KIN_SDK_INFO("flutter_kin_sdk_info"),
         INIT_KIN_CLIENT("InitKinClient"),
         CREATE_ACCOUNT("CreateAccount"),
         DELETE_ACCOUNT("DeleteAccount"),
@@ -422,9 +430,12 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         GET_ACCOUNT_STATE("GetAccountState"),
         SEND_TRANSACTION("SendTransaction"),
         SEND_WHITELIST_TRANSACTION("SendWhitelistTransaction"),
-        FUND("Fund"),
+        EARN("Earn"),
         CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN("CreateAccountOnPlaygroundBlockchain"),
         PAYMENT_EVENT("PaymentEvent"),
-        ACCOUNT_STATE_CHECK("AccountStateCheck")
+        ACCOUNT_STATE_CHECK("AccountStateCheck"),
+        SEND_INFO_JSON("SendInfoJson"),
+        SEND_BALANCE_JSON("SendBalanceJson"),
+        SEND_ERROR_JSON("SendErrorJson")
     }
 }
