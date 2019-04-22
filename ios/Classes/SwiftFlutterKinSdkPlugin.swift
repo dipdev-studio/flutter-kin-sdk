@@ -13,9 +13,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     static let infoFlutterController = FlutterStreamController()
     
     public static func register(with registrar: FlutterPluginRegistrar) {
-        let channel = FlutterMethodChannel(name: "flutter_kin_sdk", binaryMessenger: registrar.messenger())
-        let balanceEventChannel = FlutterEventChannel.init(name: "flutter_kin_sdk_balance", binaryMessenger: registrar.messenger())
-        let infoEventChannel = FlutterEventChannel.init(name: "flutter_kin_sdk_info", binaryMessenger: registrar.messenger())
+        let channel = FlutterMethodChannel(name: Constants.FLUTTER_KIN_SDK.rawValue, binaryMessenger: registrar.messenger())
+        let balanceEventChannel = FlutterEventChannel.init(name: Constants.FLUTTER_KIN_SDK_BALANCE.rawValue, binaryMessenger: registrar.messenger())
+        let infoEventChannel = FlutterEventChannel.init(name: Constants.FLUTTER_KIN_SDK_INFO.rawValue, binaryMessenger: registrar.messenger())
         let instance = SwiftFlutterKinSdkPlugin()
         balanceEventChannel.setStreamHandler(balanceFlutterController)
         infoEventChannel.setStreamHandler(infoFlutterController)
@@ -23,26 +23,26 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        if(call.method.elementsEqual("initKinClient")){
+        if(call.method.elementsEqual(Constants.INIT_KIN_CLIENT.rawValue)){
             let arguments = call.arguments as? NSDictionary
             isProduction = arguments!["isProduction"] as! Bool
             let appId = arguments!["appId"] as? String
             let serverUrl = arguments!["serverUrl"] as? String
             if(isProduction) {
-                sendError(code: "-0", type: "initKinClient", message: "Sorry, but the production network is not implemented in this version of plugin")
+                sendError(code: "-0", type: Constants.INIT_KIN_CLIENT.rawValue, message: "Sorry, but the production network is not implemented in this version of plugin")
                 return
             }
             initKinClient(appId: appId, serverUrl: serverUrl)
-            sendReport(type: "InitKinClient", message: "Kin init successful")
+            sendReport(type: Constants.INIT_KIN_CLIENT.rawValue, message: "Kin init successful")
         } else {
             if(!isKinClientInit()){return}
         }
         
-        if(call.method.elementsEqual("createAccount")){
+        if(call.method.elementsEqual(Constants.CREATE_ACCOUNT.rawValue)){
             result(self.createAccount())
         }
         
-        if(call.method.elementsEqual("deleteAccount")){
+        if(call.method.elementsEqual(Constants.DELETE_ACCOUNT.rawValue)){
             let arguments = call.arguments as? NSDictionary
             let publicAddress = arguments!["publicAddress"] as? String
             if (publicAddress == nil){return}
@@ -51,7 +51,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             deleteAccount(accountNum: accountNum!)
         }
         
-        if(call.method.elementsEqual("importAccount")){
+        if(call.method.elementsEqual(Constants.IMPORT_ACCOUNT.rawValue)){
             let arguments = call.arguments as? NSDictionary
             let recoveryString = arguments!["recoveryString"] as? String
             let secretPassphrase = arguments!["secretPassphrase"] as? String
@@ -61,7 +61,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             result(account!.publicAddress)
         }
         
-        if(call.method.elementsEqual("exportAccount")){
+        if(call.method.elementsEqual(Constants.EXPORT_ACCOUNT.rawValue)){
             let arguments = call.arguments as? NSDictionary
             let publicAddress = arguments!["publicAddress"] as? String
             let secretPassphrase = arguments!["secretPassphrase"] as? String
@@ -72,7 +72,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             if (recoveryString != nil) {result(recoveryString)}
         }
         
-        if(call.method.elementsEqual("getAccountBalance")){
+        if(call.method.elementsEqual(Constants.GET_ACCOUNT_BALANCE.rawValue)){
             let arguments = call.arguments as? NSDictionary
             let publicAddress = arguments!["publicAddress"] as? String
             let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
@@ -82,7 +82,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             }
         }
         
-        if(call.method.elementsEqual("getAccountState")){
+        if(call.method.elementsEqual(Constants.GET_ACCOUNT_STATE.rawValue)){
             let arguments = call.arguments as? NSDictionary
             let publicAddress = arguments!["publicAddress"] as? String
             let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
@@ -92,7 +92,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             }
         }
         
-        if(call.method.elementsEqual("sendTransaction")){
+        if(call.method.elementsEqual(Constants.SEND_TRANSACTION.rawValue)){
             let arguments = call.arguments as? NSDictionary
             let publicAddress = arguments!["publicAddress"] as? String
             let toAddress = arguments!["toAddress"] as? String
@@ -102,10 +102,10 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             if (publicAddress == nil || toAddress == nil || kinAmount == nil || fee == nil){return}
             let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
             if (accountNum == nil){return}
-            sendTransaction(fromAccountNum: accountNum!, toAddress: toAddress!, kinAmount: kinAmount!, memo: memo, fee: fee!)
+            sendTransaction(fromAccountNum: accountNum!, toAddress: "GDFZVUAAVV5MWZIACFBF6JJMU7WY3EIZBUAFXT5YOAIOAWDMN6K5REAK", kinAmount: 5, memo: "Testing transaction", fee: 1)
         }
         
-        if(call.method.elementsEqual("sendWhitelistTransaction")){
+        if(call.method.elementsEqual(Constants.SEND_WHITELIST_TRANSACTION.rawValue)){
             let arguments = call.arguments as? NSDictionary
             let whitelistServiceUrl = arguments!["whitelistServiceUrl"] as? String
             let publicAddress = arguments!["publicAddress"] as? String
@@ -119,7 +119,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             sendWhitelistTransaction(whitelistServiceUrl: whitelistServiceUrl!, fromAccountNum: accountNum!, toAddress: toAddress!, kinAmount: kinAmount!, memo: memo, fee: fee!)
         }
         
-        if(call.method.elementsEqual("fund")){
+        if(call.method.elementsEqual(Constants.EARN.rawValue)){
             //TODO
         }
     }
@@ -140,7 +140,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         do {
             kinClient = KinClient(with: providerUrl, network: network, appId: try AppId(appId!))
         } catch let error {
-            sendError(type: "InitKinClient", error: error)
+            sendError(type: Constants.INIT_KIN_CLIENT.rawValue, error: error)
         }
         receiveAccountsPaymentsAndBalanceChanges()
     }
@@ -154,13 +154,13 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             if (!isProduction){
                 createAccountOnPlayground(account: account, accountNum: accountNum!) { (result: [String : Any]?) in
                     guard result != nil else {
-                        self.sendError(code: "-1", type: "CreateAccountOnPlaygroundBlockchain", message: "Account creation on playground blockchain failed and account has already deleted")
+                        self.sendError(code: "-1", type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Account creation on playground blockchain failed and account has already deleted")
                         self.deleteAccount(accountNum: accountNum!)
                         return
                     }
-                    self.receiveAccountPayment(accountNum: accountNum!)
-                    self.receiveBalanceChanges(accountNum: accountNum!)
-                    self.sendReport(type: "CreateAccountOnPlaygroundBlockchain", message: "Account in playground was created successfully", value: account.publicAddress)
+//                    self.receiveAccountPayment(accountNum: accountNum!)
+//                    self.receiveBalanceChanges(accountNum: accountNum!)
+                    self.sendReport(type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Account in playground was created successfully", value: account.publicAddress)
                 }
             }else{
                 receiveAccountPayment(accountNum: accountNum!)
@@ -170,7 +170,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             return account.publicAddress
             
         } catch {
-            let err = ErrorReport(type: "CreateAccount", message: "Account creation exception")
+            let err = ErrorReport(type: Constants.CREATE_ACCOUNT.rawValue, message: "Account creation exception")
             sendError(code: "-2", message: "Account creation exception", details: err)
         }
         
@@ -181,26 +181,26 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                            completionHandler: @escaping (([String: Any]?) -> ())) {
         let createUrlString = "http://friendbot-testnet.kininfrastructure.com?addr=\(account.publicAddress)"
         guard let createUrl = URL(string: createUrlString) else {
-            sendError(code: "-3", type: "CreateAccountOnPlaygroundBlockchain", message: "Create Url string error")
+            sendError(code: "-3", type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Create Url string error")
             self.deleteAccount(accountNum: accountNum)
             return
         }
         let request = URLRequest(url: createUrl)
         let task = URLSession.shared.dataTask(with: request) { (data: Data?, response: URLResponse?, error: Error?) in
             if let error = error {
-                self.sendError(type: "CreateAccountOnPlaygroundBlockchain", error: error)
+                self.sendError(type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, error: error)
                 completionHandler(nil)
                 return
             }
             guard let data = data,
                 let json = try? JSONSerialization.jsonObject(with: data, options: []),
                 let result = json as? [String: Any] else {
-                    self.sendError(code: "-4", type: "CreateAccountOnPlaygroundBlockchain", message: "Account creation on playground blockchain failed with no parsable JSON")
+                    self.sendError(code: "-4", type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Account creation on playground blockchain failed with no parsable JSON")
                     completionHandler(nil)
                     return
             }
             guard result["status"] == nil else {
-                self.sendError(code: "-5", type: "CreateAccountOnPlaygroundBlockchain", message: "Error status \(result)")
+                self.sendError(code: "-5", type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Error status \(result)")
                 completionHandler(nil)
                 return
             }
@@ -213,10 +213,10 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         if (!isAccountCreated()){return}
         do {
             try kinClient!.deleteAccount(at: accountNum)
-            sendReport(type: "DeleteAccount", message: "Account deletion was a success")
+            sendReport(type: Constants.DELETE_ACCOUNT.rawValue, message: "Account deletion was a success")
         }
         catch let error {
-            sendError(type: "DeleteAccount", error: error)
+            sendError(type: Constants.DELETE_ACCOUNT.rawValue, error: error)
         }
     }
     
@@ -232,7 +232,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             return account
         }
         catch let error {
-            sendError(type: "ImportAccount", error: error)
+            sendError(type: Constants.IMPORT_ACCOUNT.rawValue, error: error)
         }
         return nil
     }
@@ -257,13 +257,13 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             if (getAccount(accountNum: index)?.publicAddress == publicAddress) {return index}
         }
         
-        sendError(code: "-13", type: "AccountStateCheck", message: "Account is not created")
+        sendError(code: "-13", type: Constants.ACCOUNT_STATE_CHECK.rawValue, message: "Account is not created")
         return nil
     }
     
     private func isAccountCreated(accountNum: Int = 0) -> Bool {
         if((kinClient?.accounts.count)! < accountNum){
-            sendError(code: "-13", type: "AccountStateCheck", message: "Account is not created")
+            sendError(code: "-13", type: Constants.ACCOUNT_STATE_CHECK.rawValue, message: "Account is not created")
             return false
         }
         return true
@@ -280,7 +280,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         if (account == nil) {return}
         account!.status { (status: AccountStatus?, error: Error?) in
             if (error != nil){
-                self.sendError(type: "GetAccountState", error: error!)
+                self.sendError(type: Constants.GET_ACCOUNT_STATE.rawValue, error: error!)
                 return
             }
             guard let status = status else { return }
@@ -300,7 +300,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         if (account == nil) {return}
         getAccountBalance(forAccount: account!) { kin in
             guard let kin = kin else {
-                self.sendError(code: "-6", type: "GetAccountBalance", message: "Error getting the balance")
+                self.sendError(code: "-6", type: Constants.GET_ACCOUNT_BALANCE.rawValue, message: "Error getting the balance")
                 return
             }
             completion(NSDecimalNumber(decimal: kin).intValue)
@@ -323,7 +323,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         let account = getAccount(accountNum: fromAccountNum)
         if (account == nil) {return}
         sendTransaction(fromAccount: account!, toAddress: toAddress, kinAmount: Kin(kinAmount), memo: memo,fee: UInt32(fee)) { txId in
-            self.sendReport(type: "SendTransaction", message: "Transaction was sent successfully for \(kinAmount)")
+            self.sendReport(type: Constants.SEND_TRANSACTION.rawValue, message: "Transaction was sent successfully for \(kinAmount)")
         }
     }
     
@@ -333,11 +333,11 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                  memo: String?,
                                  fee: Stroop,
                                  completionHandler: ((String?) -> ())?) {
-        account.generateTransaction(to: address, kin: kin, memo: memo, fee: fee) { (envelope, error) in
+        account.generateTransaction(to: address, kin: Kin(100), memo: "some", fee: UInt32(1000)) { (envelope, error) in
             if error != nil || envelope == nil {
-                self.sendError(code: "-7", type: "SendTransaction", message: "Could not generate the transaction")
+                self.sendError(code: "-7", type: Constants.SEND_TRANSACTION.rawValue, message: "Could not generate the transaction")
                 if let error = error {
-                    self.sendError(type: "SendTransaction", error: error)
+                    self.sendError(type: Constants.SEND_TRANSACTION.rawValue, error: error)
                 }
                 completionHandler?(nil)
                 return
@@ -345,9 +345,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             
             account.sendTransaction(envelope!) { (txId, error) in
                 if error != nil || txId == nil {
-                    self.sendError(code: "-8", type: "SendTransaction", message: "Error send transaction")
+                    self.sendError(code: "-8", type: Constants.SEND_TRANSACTION.rawValue, message: "Error send transaction")
                     if let error = error {
-                        self.sendError(type: "SendTransaction", error: error)
+                        self.sendError(type: Constants.SEND_TRANSACTION.rawValue, error: error)
                     }
                     completionHandler?(nil)
                     return
@@ -365,7 +365,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                       kinAmount: Kin(kinAmount),
                                       memo: memo,
                                       fee: UInt32(fee)) { txId in
-            self.sendReport(type: "SendWhitelistTransaction", message: "Transaction was sent successfully for \(kinAmount) Kin - id: \(txId!)", value: String(kinAmount))
+            self.sendReport(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: "Transaction was sent successfully for \(kinAmount) Kin - id: \(txId!)", value: String(kinAmount))
             
         }
     }
@@ -379,9 +379,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                           completionHandler: ((String?) -> ())?) {
         account.generateTransaction(to: address, kin: kin, memo: memo, fee: fee) { (envelope, error) in
             if error != nil || envelope == nil {
-                self.sendError(code: "-9", type: "SendWhitelistTransaction", message: "Could not generate the transaction")
+                self.sendError(code: "-9", type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: "Could not generate the transaction")
                 if let error = error {
-                    self.sendError(type: "SendWhitelistTransaction", error: error)
+                    self.sendError(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, error: error)
                 }
                 completionHandler?(nil)
                 return
@@ -394,18 +394,18 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                           envelope: whitelistEnvelope) { (signedEnvelope, error) in
                                             if error != nil || signedEnvelope == nil {
                                                 print("Error whitelisting the envelope")
-                                                self.sendError(code: "-10", type: "SendWhitelistTransaction", message: "Error whitelisting the envelope")
+                                                self.sendError(code: "-10", type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: "Error whitelisting the envelope")
                                                 if let error = error {
-                                                    self.sendError(type: "SendWhitelistTransaction", error: error)
+                                                    self.sendError(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, error: error)
                                                 }
                                                 completionHandler?(nil)
                                                 return
                                             }
                                             account.sendTransaction(signedEnvelope!) { (txId, error) in
                                                 if error != nil || txId == nil {
-                                                    self.sendError(code: "-11", type: "SendWhitelistTransaction", message: "Error send whitelist transaction")
+                                                    self.sendError(code: "-11", type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: "Error send whitelist transaction")
                                                     if let error = error {
-                                                        self.sendError(type: "SendWhitelistTransaction", error: error)
+                                                        self.sendError(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, error: error)
                                                     }
                                                     completionHandler?(nil)
                                                     return
@@ -445,8 +445,8 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     private func receiveAccountsPaymentsAndBalanceChanges() {
         if(!isKinClientInit() || kinClient?.accounts.count == 0){return}
         for index in 0...((kinClient?.accounts.count)! - 1) {
-            receiveAccountPayment(accountNum: index)
-            receiveBalanceChanges(accountNum: index)
+//            receiveAccountPayment(accountNum: index)
+//            receiveBalanceChanges(accountNum: index)
         }
     }
     
@@ -458,11 +458,11 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             watch = try kinClient!.accounts[accountNum]!.watchPayments(cursor: nil)
             watch.emitter
                 .on(next: {
-                    self.sendReport(type: "PaymentEvent", message: NSString(format: "to = %@, from = %@", $0.destination, $0.source) as String, value: String(($0.amount as NSDecimalNumber).intValue))
+                    self.sendReport(type: Constants.PAYMENT_EVENT.rawValue, message: NSString(format: "to = %@, from = %@", $0.destination, $0.source) as String, value: String(($0.amount as NSDecimalNumber).intValue))
                 })
                 .add(to: linkBag)
         }catch{
-            sendError(type: "ReceiveAccountPayment", error: error)
+            sendError(type: Constants.PAYMENT_EVENT.rawValue, error: error)
         }
     }
     
@@ -479,7 +479,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                 })
                 .add(to: linkBag)
         } catch {
-            sendError(code: "-12", type: "BalanceChange", message: "Balance change exception")
+            sendError(code: "-12", type: Constants.GET_ACCOUNT_BALANCE.rawValue, message: "Balance change exception")
         }
         getAccountBalance(accountNum: accountNum){ (balance) -> () in
             self.sendBalance(publicAddress: self.kinClient!.accounts[accountNum]!.publicAddress, amount: balance)
@@ -488,7 +488,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func isKinClientInit() -> Bool{
         if(kinClient == nil){
-            sendError(code: "-14", type: "KinClientInit", message: "Kin client not inited")
+            sendError(code: "-14", type: Constants.INIT_KIN_CLIENT.rawValue, message: "Kin client not inited")
             return false
         }
         return true
@@ -501,7 +501,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         do {
             data = try encoder.encode(balanceReport)
         } catch {
-            sendError(type: "SendBalanceJson", error: error)
+            sendError(type: Constants.SEND_BALANCE_JSON.rawValue, error: error)
         }
         if (data != nil) {
             SwiftFlutterKinSdkPlugin.balanceFlutterController.eventCallback?(String(data: data!, encoding: .utf8)!)
@@ -520,7 +520,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         do {
             data = try encoder.encode(info)
         } catch {
-            sendError(type: "SendReportJson", error: error)
+            sendError(type: Constants.SEND_INFO_JSON.rawValue, error: error)
         }
         if (data != nil) {
             SwiftFlutterKinSdkPlugin.infoFlutterController.eventCallback?(String(data: data!, encoding: .utf8)!)
@@ -534,21 +534,25 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         sendError(code: "-15", message: message!, details: err)
     }
     
-    private func sendError(code: String, type: String, message: String) {
+    private func sendError(code: String, type: String, message: String, isBalance: Bool = false) {
         let err = ErrorReport(type: type, message: message)
-        sendError(code: code, message: message, details: err)
+        sendError(code: code, message: message, details: err, isBalance: isBalance)
     }
     
-    private func sendError(code: String, message: String?, details: ErrorReport) {
+    private func sendError(code: String, message: String?, details: ErrorReport, isBalance: Bool = false) {
         let encoder = JSONEncoder()
         var data: Data? = nil
         do {
             data = try encoder.encode(details)
         } catch {
-            sendError(type: "SendErrorJson", error: error)
+            sendError(type: Constants.SEND_ERROR_JSON.rawValue, error: error)
         }
         if (data != nil) {
-            SwiftFlutterKinSdkPlugin.infoFlutterController.error(code, message: message, details: String(data: data!, encoding: .utf8)!)
+            if (!isBalance){
+                SwiftFlutterKinSdkPlugin.infoFlutterController.error(code, message: message, details: String(data: data!, encoding: .utf8)!)
+            } else{
+                SwiftFlutterKinSdkPlugin.balanceFlutterController.error(code, message: message, details: String(data: data!, encoding: .utf8)!)
+            }
         }
     }
     
@@ -589,5 +593,26 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         let type: String
         let message: String
     }
+    
+    enum Constants: String {
+        case FLUTTER_KIN_SDK = "flutter_kin_sdk"
+        case FLUTTER_KIN_SDK_BALANCE = "flutter_kin_sdk_balance"
+        case FLUTTER_KIN_SDK_INFO = "flutter_kin_sdk_info"
+        case INIT_KIN_CLIENT = "InitKinClient"
+        case CREATE_ACCOUNT = "CreateAccount"
+        case DELETE_ACCOUNT = "DeleteAccount"
+        case IMPORT_ACCOUNT = "ImportAccount"
+        case EXPORT_ACCOUNT = "ExportAccount"
+        case GET_ACCOUNT_BALANCE = "GetAccountBalance"
+        case GET_ACCOUNT_STATE = "GetAccountState"
+        case SEND_TRANSACTION = "SendTransaction"
+        case SEND_WHITELIST_TRANSACTION = "SendWhitelistTransaction"
+        case EARN = "Earn"
+        case CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN = "CreateAccountOnPlaygroundBlockchain"
+        case PAYMENT_EVENT = "PaymentEvent"
+        case ACCOUNT_STATE_CHECK = "AccountStateCheck"
+        case SEND_INFO_JSON = "SendInfoJson"
+        case SEND_BALANCE_JSON = "SendBalanceJson"
+        case SEND_ERROR_JSON = "SendErrorJson"
+    }
 }
-

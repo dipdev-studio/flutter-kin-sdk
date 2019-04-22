@@ -6,10 +6,10 @@ import 'package:flutter/services.dart';
 import 'lib_utils.dart';
 
 class FlutterKinSdk {
-  static MethodChannel _methodChannel = MethodChannel('flutter_kin_sdk');
+  static MethodChannel _methodChannel = MethodChannel(FlutterKinSDKConstans.FLUTTER_KIN_SDK);
 
-  static const _streamBalance = const EventChannel('flutter_kin_sdk_balance');
-  static const _streamInfo = const EventChannel('flutter_kin_sdk_info');
+  static const _streamBalance = const EventChannel(FlutterKinSDKConstans.FLUTTER_KIN_SDK_BALANCE);
+  static const _streamInfo = const EventChannel(FlutterKinSDKConstans.FLUTTER_KIN_SDK_INFO);
 
   static StreamController<Info> _streamInfoController =
       new StreamController.broadcast();
@@ -30,7 +30,9 @@ class FlutterKinSdk {
     _streamBalance.receiveBroadcastStream().listen((data) {
       _streamBalanceController.add(BalanceReport.fromJson(json.decode(data)));
     }, onError: (error) {
-      throw error;
+      Error err = Error.fromJson(json.decode(error.details));
+      err.code = error.code;
+      _streamBalanceController.addError(err);
     });
   }
 
@@ -51,12 +53,12 @@ class FlutterKinSdk {
     };
     if (serverUrl != null) params.addAll({"serverUrl": serverUrl});
     // getting response by stream
-    await _methodChannel.invokeMethod('initKinClient', params);
+    await _methodChannel.invokeMethod(FlutterKinSDKConstans.INIT_KIN_CLIENT, params);
   }
 
   static Future<String> createAccount() async {
     // public address will be returned
-    return await _methodChannel.invokeMethod('createAccount');
+    return await _methodChannel.invokeMethod(FlutterKinSDKConstans.CREATE_ACCOUNT);
   }
 
   static void deleteAccount(String publicAddress) async {
@@ -64,7 +66,7 @@ class FlutterKinSdk {
       'publicAddress': publicAddress,
     };
     // getting response by stream
-    await _methodChannel.invokeMethod('deleteAccount', params);
+    await _methodChannel.invokeMethod(FlutterKinSDKConstans.DELETE_ACCOUNT, params);
   }
 
   static Future<String> importAccount(
@@ -74,7 +76,7 @@ class FlutterKinSdk {
       'secretPassphrase': secretPassphrase,
     };
     // public address will be returned
-    return await _methodChannel.invokeMethod('importAccount', params);
+    return await _methodChannel.invokeMethod(FlutterKinSDKConstans.IMPORT_ACCOUNT, params);
   }
 
   static Future<String> exportAccount(
@@ -83,7 +85,7 @@ class FlutterKinSdk {
       'publicAddress': publicAddress,
       'secretPassphrase': secretPassphrase,
     };
-    return await _methodChannel.invokeMethod('exportAccount', params);
+    return await _methodChannel.invokeMethod(FlutterKinSDKConstans.EXPORT_ACCOUNT, params);
   }
 
   static Future<int> getAccountBalance(String publicAddress) async {
@@ -91,7 +93,7 @@ class FlutterKinSdk {
       'publicAddress': publicAddress,
     };
 
-    return await _methodChannel.invokeMethod('getAccountBalance', params);
+    return await _methodChannel.invokeMethod(FlutterKinSDKConstans.GET_ACCOUNT_BALANCE, params);
   }
 
   static Future<AccountStates> getAccountState(String publicAddress) async {
@@ -99,7 +101,7 @@ class FlutterKinSdk {
       'publicAddress': publicAddress,
     };
 
-    var state = await _methodChannel.invokeMethod('getAccountState', params);
+    var state = await _methodChannel.invokeMethod(FlutterKinSDKConstans.GET_ACCOUNT_STATE, params);
 
     if (state == "Account is created") return AccountStates.Created;
     return AccountStates.NotCreated;
@@ -115,7 +117,7 @@ class FlutterKinSdk {
       'fee': fee,
     };
     // getting response by stream
-    await _methodChannel.invokeMethod('sendTransaction', params);
+    await _methodChannel.invokeMethod(FlutterKinSDKConstans.SEND_TRANSACTION, params);
   }
 
   static void sendWhitelistTransaction(
@@ -134,7 +136,7 @@ class FlutterKinSdk {
       'fee': fee,
     };
     // getting response by stream
-    await _methodChannel.invokeMethod('sendWhitelistTransaction', params);
+    await _methodChannel.invokeMethod(FlutterKinSDKConstans.SEND_WHITELIST_TRANSACTION, params);
   }
 
   static Future<String> earn(String publicAddress, int kinAmount) async {
@@ -143,8 +145,30 @@ class FlutterKinSdk {
       'kinAmount': kinAmount,
     };
     // getting response by stream
-    return await _methodChannel.invokeMethod('earn');
+    return await _methodChannel.invokeMethod(FlutterKinSDKConstans.EARN);
   }
 }
 
 enum AccountStates { Created, NotCreated }
+
+class FlutterKinSDKConstans {
+  static const String FLUTTER_KIN_SDK = 'flutter_kin_sdk';
+  static const String FLUTTER_KIN_SDK_BALANCE = 'flutter_kin_sdk_balance';
+  static const String FLUTTER_KIN_SDK_INFO = 'flutter_kin_sdk_info';
+  static const String INIT_KIN_CLIENT = 'InitKinClient';
+  static const String CREATE_ACCOUNT = 'CreateAccount';
+  static const String DELETE_ACCOUNT = 'DeleteAccount';
+  static const String IMPORT_ACCOUNT = 'ImportAccount';
+  static const String EXPORT_ACCOUNT = 'ExportAccount';
+  static const String GET_ACCOUNT_BALANCE = 'GetAccountBalance';
+  static const String GET_ACCOUNT_STATE = 'GetAccountState';
+  static const String SEND_TRANSACTION = 'SendTransaction';
+  static const String SEND_WHITELIST_TRANSACTION = 'SendWhitelistTransaction';
+  static const String EARN = 'Earn';
+  static const String CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN = 'CreateAccountOnPlaygroundBlockchain';
+  static const String PAYMENT_EVENT = 'PaymentEvent';
+  static const String ACCOUNT_STATE_CHECK = 'AccountStateCheck';
+  static const String SEND_INFO_JSON = "SendInfoJson";
+  static const String SEND_BALANCE_JSON = "SendBalanceJson";
+  static const String SEND_ERROR_JSON = "SendErrorJson";
+}

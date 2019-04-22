@@ -43,28 +43,28 @@ class _MyAppState extends State<MyApp> {
 
   void streamReceiver(Info info) async {
     switch (info.type) {
-      case "InitKinClient":
+      case FlutterKinSDKConstans.INIT_KIN_CLIENT:
         print(info.message);
         firstPublicAddress = await FlutterKinSdk.createAccount();
         secondPublicAddress = await FlutterKinSdk.createAccount();
         break;
-      case "CreateAccountOnPlaygroundBlockchain":
+      case FlutterKinSDKConstans.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN:
         print(info.type + " Wallet: " + info.value);
         count++;
         if (count > 1){
           FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 100, "some", 1000);
         }
         break;
-      case "DeleteAccount":
+      case FlutterKinSDKConstans.DELETE_ACCOUNT:
         print(info.message);
         break;
-      case "SendTransaction":
+      case FlutterKinSDKConstans.SEND_TRANSACTION:
         print(info.message + " Amount: " + info.value);
         break;
-      case "SendWhitelistTransaction":
+      case FlutterKinSDKConstans.SEND_WHITELIST_TRANSACTION:
         print(info.message + " Amount: " + info.value);
         break;
-      case "PaymentEvent":
+      case FlutterKinSDKConstans.PAYMENT_EVENT:
         print(info.message + " Amount: " + info.value);
         print(await FlutterKinSdk.getAccountBalance(firstPublicAddress));
         print(await FlutterKinSdk.getAccountBalance(secondPublicAddress));
