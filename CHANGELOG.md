@@ -13,3 +13,13 @@
 ## 0.1.3
 
  - iOS migration methods
+
+ ## 0.2.0
+
+ New Kin SDK (Playground mode)
+
+  - Base methods (init, createAccount, importAccount etc.)
+  - Transfer Kin (Android only)
+  - New stream approach returning data
+  - Constants refactoring
+ 
