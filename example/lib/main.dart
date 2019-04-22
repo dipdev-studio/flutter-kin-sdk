@@ -46,11 +46,14 @@ class _MyAppState extends State<MyApp> {
       case "InitKinClient":
         print(info.message);
         firstPublicAddress = await FlutterKinSdk.createAccount();
-       secondPublicAddress = await FlutterKinSdk.createAccount();
+        secondPublicAddress = await FlutterKinSdk.createAccount();
         break;
       case "CreateAccountOnPlaygroundBlockchain":
         print(info.type + " Wallet: " + info.value);
-        FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 100, "some", 1000);
+        count++;
+        if (count > 1){
+          FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 100, "some", 1000);
+        }
         break;
       case "DeleteAccount":
         print(info.message);
@@ -63,6 +66,7 @@ class _MyAppState extends State<MyApp> {
         break;
       case "PaymentEvent":
         print(info.message + " Amount: " + info.value);
+        print(await FlutterKinSdk.getAccountBalance(firstPublicAddress));
         print(await FlutterKinSdk.getAccountBalance(secondPublicAddress));
         break;
     }

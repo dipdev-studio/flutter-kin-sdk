@@ -12,6 +12,10 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import kin.sdk.*
 import kin.sdk.exception.CreateAccountException
 import kin.utils.ResultCallback
+import android.util.Log
+import kin.sdk.TransactionId
+import android.R.id
+import java.math.BigDecimal
 
 
 class FlutterKinSdkPlugin(private var activity: Activity, private var context: Context) : MethodCallHandler {
@@ -57,7 +61,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         if (call.method == "initKinClient") {
-            val isProductionInput : Boolean? = call.argument("isProduction")
+            val isProductionInput: Boolean? = call.argument("isProduction")
             val appId: String = call.argument("appId") ?: return
             if (isProductionInput != null) this.isProduction = isProductionInput
             if (this.isProduction) {
@@ -101,7 +105,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             call.method == "getAccountBalance" -> {
                 val publicAddress: String = call.argument("publicAddress") ?: return
                 val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
-                getAccountBalance(accountNum, fun(balance: Long) { result.success(balance) })
+                getAccountBalance(accountNum, fun(balance: BigDecimal) { result.success(balance.toInt()) })
             }
 
             call.method == "getAccountState" -> {
@@ -111,12 +115,13 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             }
 
             call.method == "sendTransaction" -> {
-                var publicAddress: String = call.argument("publicAddress") ?: return
-                var toAddress: String = call.argument("toAddress") ?: return
-                var kinAmount: Int?= call.argument("kinAmount") ?: return
-                var memo: String? = call.argument("memo")
-                var fee: Int = call.argument("fee") ?: return
-
+                val publicAddress: String = call.argument("publicAddress") ?: return
+                val toAddress: String = call.argument("toAddress") ?: return
+                val kinAmount: Int = call.argument("kinAmount") ?: return
+                val memo: String? = call.argument("memo")
+                val fee: Int = call.argument("fee") ?: return
+                val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
+                sendTransaction(accountNum, toAddress, kinAmount, memo, fee)
             }
 
             call.method == "sendWhitelistTransaction" -> {
@@ -232,12 +237,12 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         return null
     }
 
-    private fun getAccountBalance(accountNum: Int, completion: (balance: Long) -> Unit) {
+    private fun getAccountBalance(accountNum: Int, completion: (balance: BigDecimal) -> Unit) {
         val account = getAccount(accountNum) ?: return
         account.balance.run(
                 object : ResultCallback<Balance> {
                     override fun onResult(result: Balance) {
-                        completion(result.value().longValueExact())
+                        completion(result.value())
                     }
 
                     override fun onError(e: Exception) {
@@ -264,6 +269,34 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 })
     }
 
+    private fun sendTransaction(accountNum: Int, toAddress: String, kinAmount: Int, memo: String?, fee: Int) {
+        val account = getAccount(accountNum) ?: return
+        val amountInKin = BigDecimal(kinAmount.toString())
+        val buildTransactionRequest = account.buildTransaction(toAddress, amountInKin, fee, memo)
+
+        buildTransactionRequest.run(object : ResultCallback<Transaction> {
+
+            override fun onResult(transaction: Transaction) {
+
+                val sendTransactionRequest = account.sendTransaction(transaction)
+                sendTransactionRequest.run(object : ResultCallback<TransactionId> {
+
+                    override fun onResult(id: TransactionId) {
+                        sendReport("SendTransaction", "Transaction was sent successfully", kinAmount.toString())
+                    }
+
+                    override fun onError(e: Exception) {
+                        sendError("SendTransaction", e)
+                    }
+                })
+            }
+
+            override fun onError(e: Exception) {
+                sendError("SendTransaction", e)
+            }
+        })
+    }
+
     private fun receiveAccountsPaymentsAndBalanceChanges() {
         if (!isKinClientInit() || kinClient.accountCount == 0) return
 
@@ -284,11 +317,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     private fun receiveBalanceChanges(accountNum: Int) {
         val account: KinAccount = getAccount(accountNum) ?: return
         val publicAddress = account.publicAddress ?: return
-        getAccountBalance(accountNum, fun(balance: Long) {
-            sendBalance(publicAddress, balance)
+        getAccountBalance(accountNum, fun(balance: BigDecimal) {
+            sendBalance(publicAddress, balance.toInt())
         })
         account.addBalanceListener { balance ->
-            sendBalance(publicAddress, balance.value().longValueExact())
+            sendBalance(publicAddress, balance.value().toInt())
         }
     }
 
@@ -328,7 +361,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     }
 
 
-    private fun sendBalance(publicAddress: String, amount: Long) {
+    private fun sendBalance(publicAddress: String, amount: Int) {
         val balanceReport = BalanceReport(publicAddress, amount)
         var json: String? = null
         try {
@@ -375,7 +408,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         if (json != null) infoCallback.error(code, message, json)
     }
 
-    data class BalanceReport(val publicAddress: String, val amount: Long)
+    data class BalanceReport(val publicAddress: String, val amount: Int)
     data class InfoReport(val type: String, val message: String, val value: String? = null)
     data class ErrorReport(val type: String, val message: String)
 }
