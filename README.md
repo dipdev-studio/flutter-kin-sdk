@@ -1,6 +1,6 @@
 # flutter_kin_sdk
 
-A flutter Kin SDK plugin to use offers features and launch Kin Marketplace.
+A flutter Kin SDK plugin to create, import accounts and transferring Kin.
 
 Unofficial Kin SDK plugin written in Dart for Flutter.
 
@@ -10,7 +10,7 @@ To use this plugin, add `flutter_kin_sdk` as a [dependency in your pubspec.yaml 
 
 ```yaml
 dependencies:
-  flutter_kin_sdk: '^0.1.4'
+  flutter_kin_sdk: '^0.2.0'
 ```
 
 ### Initializing
@@ -18,48 +18,67 @@ dependencies:
 ``` dart
 import 'package:flutter_kin_sdk/flutter_kin_sdk.dart';
 
-// Generate jwt_token and all jwt by yourself and setting in the plugin to have a response
-//userID - your application unique identifier for the user
-//appID - your application unique identifier as provided by Kin.
-// true - initializing balance observer
-// true - production mode (false - playground)
-await FlutterKinSdk.kinStart(jwt_token, userId, appId, true, true);
-```
-
-### Receivers
-
-To receive some changes in plugin you can use such ones:
-
-``` dart
-// Receive balance scream and get all balance changes
-FlutterKinSdk.balanceStream.receiveBroadcastStream().listen((balance) {
-    print(balance);
+FlutterKinSdk.infoStream.stream.listen((data) async {
+    streamReceiver(data);
+}, onError: (error){
+    throw PlatformException(code: error.code, message: error.type, details: error.message);
 });
 
-// Receive all info and error messages from plugin
-FlutterKinSdk.infoStream.receiveBroadcastStream().listen((jsonStr) {
-    print(jsonStr);
+FlutterKinSdk.balanceStream.stream.listen((BalanceReport balanceReport) async {
+    if (balanceReport.publicAddress == firstPublicAddress) {
+        print(balanceReport.amount);
+    }
 });
+
+//Insert your appId
+FlutterKinSdk.initKinClient("some");
 ```
 
-### Some methods
+### Some methods inserted in reciever
 
 ``` dart
-// A custom Earn offer allows your users to earn Kin
-// as a reward for performing tasks you want to incentives,
-// such as setting a profile picture or rating your app
-FlutterKinSdk.kinEarn(jwt);
+String firstPublicAddress;
+String secondPublicAddress;
+String recoveryString;
+int count = 0;
 
-// A custom Spend offer allows your users to unlock unique spend opportunities
-// that you define within your app
-FlutterKinSdk.kinSpend(jwt);
-
-// A custom pay to user offer allows your users to unlock
-// unique spend opportunities that you define
-// within your app offered by other users
-FlutterKinSdk.kinPayToUser(jwt);
+void streamReceiver(Info info) async {
+    switch (info.type) {
+      case FlutterKinSDKConstans.INIT_KIN_CLIENT:
+        print(info.message);
+        firstPublicAddress = await FlutterKinSdk.createAccount();
+        secondPublicAddress = await FlutterKinSdk.createAccount();
+        break;
+      case FlutterKinSDKConstans.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN:
+        print(info.type + " Wallet: " + info.value);
+        count++;
+        if (count > 1){
+          FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 100, "some", 1000);
+        }
+        break;
+      case FlutterKinSDKConstans.DELETE_ACCOUNT:
+        print(info.message);
+        break;
+      case FlutterKinSDKConstans.SEND_TRANSACTION:
+        print(info.message + " Amount: " + info.value);
+        break;
+      case FlutterKinSDKConstans.SEND_WHITELIST_TRANSACTION:
+        print(info.message + " Amount: " + info.value);
+        break;
+      case FlutterKinSDKConstans.PAYMENT_EVENT:
+        print(info.message + " Amount: " + info.value);
+        print(await FlutterKinSdk.getAccountBalance(firstPublicAddress));
+        print(await FlutterKinSdk.getAccountBalance(secondPublicAddress));
+        break;
+    }
+  }
 ```
 
+## Installation
+
+### iOS
+
+``` xml
 <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
@@ -75,10 +94,4 @@ FlutterKinSdk.kinPayToUser(jwt);
             </dict>
        </dict>
   </dict>
-
-## Installation
-
-
-### Android and iOS
-
-No configuration required - the plugin should work out of the box.
+```
