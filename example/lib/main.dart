@@ -47,6 +47,10 @@ class _MyAppState extends State<MyApp> {
         print(info.message);
         firstPublicAddress = await FlutterKinSdk.createAccount();
         secondPublicAddress = await FlutterKinSdk.createAccount();
+        print(firstPublicAddress);
+        // firstPublicAddress = await FlutterKinSdk.importAccount(await FlutterKinSdk.exportAccount(firstPublicAddress, "some"), "some");
+        // firstPublicAddress = await FlutterKinSdk.importAccount(await FlutterKinSdk.exportAccount(firstPublicAddress, "some"), "some");
+        print(firstPublicAddress);
         break;
       case FlutterKinSDKConstans.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN:
         print(info.type + " Wallet: " + info.value);

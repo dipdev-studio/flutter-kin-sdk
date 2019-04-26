@@ -158,8 +158,8 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                         self.deleteAccount(accountNum: accountNum!)
                         return
                     }
-//                    self.receiveAccountPayment(accountNum: accountNum!)
-//                    self.receiveBalanceChanges(accountNum: accountNum!)
+                    self.receiveAccountPayment(accountNum: accountNum!)
+                    self.receiveBalanceChanges(accountNum: accountNum!)
                     self.sendReport(type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Account in playground was created successfully", value: account.publicAddress)
                 }
             }else{
@@ -445,8 +445,8 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     private func receiveAccountsPaymentsAndBalanceChanges() {
         if(!isKinClientInit() || kinClient?.accounts.count == 0){return}
         for index in 0...((kinClient?.accounts.count)! - 1) {
-//            receiveAccountPayment(accountNum: index)
-//            receiveBalanceChanges(accountNum: index)
+            receiveAccountPayment(accountNum: index)
+            receiveBalanceChanges(accountNum: index)
         }
     }
     
