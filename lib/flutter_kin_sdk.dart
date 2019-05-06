@@ -139,13 +139,13 @@ class FlutterKinSdk {
     await _methodChannel.invokeMethod(FlutterKinSDKConstans.SEND_WHITELIST_TRANSACTION, params);
   }
 
-  static Future<String> earn(String publicAddress, int kinAmount) async {
+  static Future<String> fund(String publicAddress, int kinAmount) async {
     Map<String, dynamic> params = <String, dynamic>{
       'publicAddress': publicAddress,
       'kinAmount': kinAmount,
     };
     // getting response by stream
-    return await _methodChannel.invokeMethod(FlutterKinSDKConstans.EARN);
+    return await _methodChannel.invokeMethod(FlutterKinSDKConstans.FUND, params);
   }
 }
 
@@ -164,7 +164,7 @@ class FlutterKinSDKConstans {
   static const String GET_ACCOUNT_STATE = 'GetAccountState';
   static const String SEND_TRANSACTION = 'SendTransaction';
   static const String SEND_WHITELIST_TRANSACTION = 'SendWhitelistTransaction';
-  static const String EARN = 'Earn';
+  static const String FUND = 'Fund';
   static const String CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN = 'CreateAccountOnPlaygroundBlockchain';
   static const String PAYMENT_EVENT = 'PaymentEvent';
   static const String ACCOUNT_STATE_CHECK = 'AccountStateCheck';

@@ -64,10 +64,10 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             val isProductionInput: Boolean? = call.argument("isProduction")
             val appId: String = call.argument("appId") ?: return
             if (isProductionInput != null) this.isProduction = isProductionInput
-            if (this.isProduction) {
-                sendError("-0", Constants.INIT_KIN_CLIENT.value, "Sorry, but the production network is not implemented in this version of plugin")
-                return
-            }
+//            if (this.isProduction) {
+//                sendError("-0", Constants.INIT_KIN_CLIENT.value, "Sorry, but the production network is not implemented in this version of plugin")
+//                return
+//            }
             initKinClient(appId)
             sendReport(Constants.INIT_KIN_CLIENT.value, "Kin init successful")
         } else {
@@ -134,8 +134,11 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
             }
 
-            call.method == Constants.EARN.value -> {
-                //TODO
+            call.method == Constants.FUND.value -> {
+                val publicAddress: String = call.argument("publicAddress") ?: return
+                val kinAmount: Int = call.argument("kinAmount") ?: return
+                val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
+                fund(accountNum, kinAmount)
             }
         }
     }
@@ -297,6 +300,19 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         })
     }
 
+    private fun fund(accountNum: Int, kinAmount: Int) {
+        val account = kinClient.getAccount(accountNum)
+        AccountOnPlayground().fundOnAccount(account, kinAmount, object : AccountOnPlayground.Callbacks {
+            override fun onSuccess() {
+                sendReport(Constants.FUND.value, String.format("Fund successful to %s", account.publicAddress), kinAmount.toString())
+            }
+
+            override fun onFailure(e: Exception) {
+                sendError(Constants.FUND.value, e)
+            }
+        })
+    }
+
     private fun receiveAccountsPaymentsAndBalanceChanges() {
         if (!isKinClientInit() || kinClient.accountCount == 0) return
 
@@ -405,7 +421,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         } catch (e: Throwable) {
             sendError(Constants.SEND_ERROR_JSON.value, e)
         }
-        if (json != null){
+        if (json != null) {
             if (!isBalance)
                 infoCallback.error(code, message, json)
             else
@@ -430,7 +446,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         GET_ACCOUNT_STATE("GetAccountState"),
         SEND_TRANSACTION("SendTransaction"),
         SEND_WHITELIST_TRANSACTION("SendWhitelistTransaction"),
-        EARN("Earn"),
+        FUND("Fund"),
         CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN("CreateAccountOnPlaygroundBlockchain"),
         PAYMENT_EVENT("PaymentEvent"),
         ACCOUNT_STATE_CHECK("AccountStateCheck"),

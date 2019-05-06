@@ -27,6 +27,7 @@ internal class AccountOnPlayground {
     companion object {
         private const val FUND_KIN_AMOUNT = 1000
         private const val URL_CREATE_ACCOUNT = "https://friendbot-testnet.kininfrastructure.com?addr=%s&amount=$FUND_KIN_AMOUNT"
+        private const val URL_FUND_ON_ACCOUNT = "http://friendbot-testnet.kininfrastructure.com/fund?addr=%s&amount=%s"
     }
 
     fun onBoard(account: KinAccount, callbacks: Callbacks) {
@@ -53,6 +54,27 @@ internal class AccountOnPlayground {
                         response.close()
                         if (code != 200) {
                             fireOnFailure(callbacks, Exception("Create account - response code is " + response.code()))
+                        }
+                    }
+                })
+    }
+
+    fun fundOnAccount(account: KinAccount, kinAmount: Int, callbacks: Callbacks) {
+        val request = Request.Builder()
+                .url(String.format(URL_FUND_ON_ACCOUNT, account.publicAddress, kinAmount.toString()))
+                .get()
+                .build()
+        okHttpClient.newCall(request)
+                .enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        fireOnFailure(callbacks, e)
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        val code = response.code()
+                        response.close()
+                        if (code != 200) {
+                            fireOnFailure(callbacks, Exception("Fund on account - response code is " + response.code()))
                         }
                     }
                 })
