@@ -27,7 +27,7 @@ internal class AccountOnPlayground {
     companion object {
         private const val FUND_KIN_AMOUNT = 1000
         private const val URL_CREATE_ACCOUNT = "https://friendbot-testnet.kininfrastructure.com?addr=%s&amount=$FUND_KIN_AMOUNT"
-        private const val URL_FUND_ON_ACCOUNT = "http://friendbot-testnet.kininfrastructure.com/fund?addr=%s&amount=%s"
+        private const val URL_FUND_ON_ACCOUNT = "https://friendbot-testnet.kininfrastructure.com/fund?addr=%s&amount=%s"
     }
 
     fun onBoard(account: KinAccount, callbacks: Callbacks) {
@@ -75,6 +75,8 @@ internal class AccountOnPlayground {
                         response.close()
                         if (code != 200) {
                             fireOnFailure(callbacks, Exception("Fund on account - response code is " + response.code()))
+                        } else {
+                            fireOnSuccess(callbacks)
                         }
                     }
                 })

@@ -184,7 +184,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func createAccountOnPlayground(account: KinAccount, accountNum: Int,
                                            completionHandler: @escaping (([String: Any]?) -> ())) {
-        let createUrlString = "http://friendbot-testnet.kininfrastructure.com?addr=\(account.publicAddress)"
+        let createUrlString = "http://friendbot-testnet.kininfrastructure.com?addr=\(account.publicAddress)&amount=100"
         guard let createUrl = URL(string: createUrlString) else {
             sendError(code: "-3", type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Create Url string error")
             self.deleteAccount(accountNum: accountNum)
@@ -329,6 +329,10 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         if (account == nil) {return}
         sendTransaction(fromAccount: account!, toAddress: toAddress, kinAmount: Kin(kinAmount), memo: memo,fee: UInt32(fee)) { txId in
             self.sendReport(type: Constants.SEND_TRANSACTION.rawValue, message: "Transaction was sent successfully for \(account!.publicAddress)", value: String(kinAmount))
+            
+            self.getAccountBalance(accountNum: fromAccountNum){ (balance) -> () in
+                self.sendBalance(publicAddress: self.kinClient!.accounts[fromAccountNum]!.publicAddress, amount: balance)
+            }
         }
     }
     
