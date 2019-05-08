@@ -22,4 +22,10 @@
   - Transfer Kin (Android only)
   - New stream approach returning data
   - Constants refactoring
+
+ ## 0.2.1
+
+  - Transfer Kin (Playground: Android and iOS)
+  - Fund Kin (Playground: Android and iOS)
+  - Update Android Kin SDK to 1.0.3.1
  

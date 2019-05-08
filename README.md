@@ -10,7 +10,7 @@ To use this plugin, add `flutter_kin_sdk` as a [dependency in your pubspec.yaml 
 
 ```yaml
 dependencies:
-  flutter_kin_sdk: '^0.2.0'
+  flutter_kin_sdk: '^0.2.1'
 ```
 
 ### Initializing
@@ -53,7 +53,7 @@ void streamReceiver(Info info) async {
         print(info.type + " Wallet: " + info.value);
         count++;
         if (count > 1){
-          FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 100, "some", 1000);
+          FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 10, "some", 1000);
         }
         break;
       case FlutterKinSDKConstans.DELETE_ACCOUNT:
@@ -61,6 +61,7 @@ void streamReceiver(Info info) async {
         break;
       case FlutterKinSDKConstans.SEND_TRANSACTION:
         print(info.message + " Amount: " + info.value);
+        FlutterKinSdk.fund(firstPublicAddress, 30);
         break;
       case FlutterKinSDKConstans.SEND_WHITELIST_TRANSACTION:
         print(info.message + " Amount: " + info.value);
@@ -69,6 +70,10 @@ void streamReceiver(Info info) async {
         print(info.message + " Amount: " + info.value);
         print(await FlutterKinSdk.getAccountBalance(firstPublicAddress));
         print(await FlutterKinSdk.getAccountBalance(secondPublicAddress));
+        break;
+      case FlutterKinSDKConstans.FUND:
+        print(info.message + " Amount: " + info.value);
+        print(await FlutterKinSdk.getAccountBalance(firstPublicAddress));
         break;
     }
   }
