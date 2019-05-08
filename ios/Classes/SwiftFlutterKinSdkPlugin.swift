@@ -184,7 +184,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     
     private func createAccountOnPlayground(account: KinAccount, accountNum: Int,
                                            completionHandler: @escaping (([String: Any]?) -> ())) {
-        let createUrlString = "http://friendbot-testnet.kininfrastructure.com?addr=\(account.publicAddress)&amount=100"
+        let createUrlString = "https://friendbot-testnet.kininfrastructure.com?addr=\(account.publicAddress)&amount=100"
         guard let createUrl = URL(string: createUrlString) else {
             sendError(code: "-3", type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Create Url string error")
             self.deleteAccount(accountNum: accountNum)
