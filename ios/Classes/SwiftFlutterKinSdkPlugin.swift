@@ -27,12 +27,11 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             let arguments = call.arguments as? NSDictionary
             isProduction = arguments!["isProduction"] as! Bool
             let appId = arguments!["appId"] as? String
-            let serverUrl = arguments!["serverUrl"] as? String
 //            if(isProduction) {
 //                sendError(code: "-0", type: Constants.INIT_KIN_CLIENT.rawValue, message: "Sorry, but the production network is not implemented in this version of plugin")
 //                return
 //            }
-            initKinClient(appId: appId, serverUrl: serverUrl)
+            initKinClient(appId: appId)
             sendReport(type: Constants.INIT_KIN_CLIENT.rawValue, message: "Kin init successful")
         } else {
             if(!isKinClientInit()){return}
@@ -130,7 +129,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func initKinClient(appId: String? = nil, serverUrl: String? = nil){
+    private func initKinClient(appId: String? = nil){
         if (appId == nil) {return}
         var url: String
         var network : Network
