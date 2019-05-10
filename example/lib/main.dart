@@ -36,7 +36,7 @@ class _MyAppState extends State<MyApp> {
       }
     });
 
-    flutterKinSdk = FlutterKinSdk(true, "wBu7");
+    flutterKinSdk = FlutterKinSdk(false, "wBu7");
     flutterKinSdk.initKinClient();
   }
 

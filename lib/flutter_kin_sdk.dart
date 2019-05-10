@@ -142,13 +142,28 @@ class FlutterKinSdk {
         FlutterKinSDKConstans.EXPORT_ACCOUNT, params);
   }
 
-  Future<int> getAccountBalance(String publicAddress) async {
-    Map<String, dynamic> params = <String, dynamic>{
-      'publicAddress': publicAddress,
-    };
+  Future<int> getAccountBalance(String publicAddress,
+      {String requestProductionUrl}) async {
+    int balance = 0;
+    if (isProduction) {
+      await api
+          .getRequest(requestProductionUrl + "/" + publicAddress)
+          .then((response) {
+        if (response.statusCode == 200)
+          balance = json.decode(response.body)['balance'];
+        else
+          _sendError(
+              response.body, "-6", FlutterKinSDKConstans.GET_ACCOUNT_BALANCE);
+      });
+    } else {
+      Map<String, dynamic> params = <String, dynamic>{
+        'publicAddress': publicAddress,
+      };
+      balance = await _methodChannel.invokeMethod(
+          FlutterKinSDKConstans.GET_ACCOUNT_BALANCE, params);
+    }
 
-    return await _methodChannel.invokeMethod(
-        FlutterKinSDKConstans.GET_ACCOUNT_BALANCE, params);
+    return balance;
   }
 
   Future<AccountStates> getAccountState(String publicAddress) async {
