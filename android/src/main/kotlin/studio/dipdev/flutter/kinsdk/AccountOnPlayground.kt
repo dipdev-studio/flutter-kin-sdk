@@ -25,7 +25,7 @@ internal class AccountOnPlayground {
             .build()
 
     companion object {
-        private const val FUND_KIN_AMOUNT = 1000
+        private const val FUND_KIN_AMOUNT = 100
         private const val URL_CREATE_ACCOUNT = "https://friendbot-testnet.kininfrastructure.com?addr=%s&amount=$FUND_KIN_AMOUNT"
         private const val URL_FUND_ON_ACCOUNT = "https://friendbot-testnet.kininfrastructure.com/fund?addr=%s&amount=%s"
     }

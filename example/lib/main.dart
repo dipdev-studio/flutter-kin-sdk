@@ -52,7 +52,7 @@ class _MyAppState extends State<MyApp> {
         count++;
         if (count > 1) {
           flutterKinSdk.sendTransaction(
-              firstPublicAddress, secondPublicAddress, 100, "some", 1000);
+              firstPublicAddress, secondPublicAddress, 10, "some", 1000);
         }
         break;
       case FlutterKinSDKConstans.DELETE_ACCOUNT:
@@ -60,7 +60,7 @@ class _MyAppState extends State<MyApp> {
         break;
       case FlutterKinSDKConstans.SEND_TRANSACTION:
         print(info.message + " Amount: " + info.value);
-        flutterKinSdk.fund(firstPublicAddress, 300);
+        flutterKinSdk.fund(firstPublicAddress, 30);
         break;
       case FlutterKinSDKConstans.SEND_WHITELIST_TRANSACTION:
         print(info.message + " Amount: " + info.value);
