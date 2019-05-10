@@ -3,6 +3,8 @@ class Info {
   String message;
   String value;
 
+  Info(this.type, this.message, this.value);
+
   Info.fromJson(Map<dynamic, dynamic> raw) {
     Map<String, dynamic> json = Map<String, dynamic>.from(raw);
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_kin_sdk/flutter_kin_sdk.dart';
-import 'package:flutter_kin_sdk/lib_utils.dart';
+import 'package:flutter_kin_sdk/utils/lib_utils.dart';
 
 void main() => runApp(MyApp());
 
@@ -11,7 +11,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
+  FlutterKinSdk flutterKinSdk;
+
   String firstPublicAddress;
   String secondPublicAddress;
   String recoveryString;
@@ -20,39 +21,38 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    initPlatformState();
-  }
-
-  // Platform messages are asynchronous, so we initialize in an async method.
-  void initPlatformState() async {
+    
     FlutterKinSdk.infoStream.stream.listen((data) async {
       streamReceiver(data);
-    }, onError: (error){
-      throw PlatformException(code: error.code, message: error.type, details: error.message);
+    }, onError: (error) {
+      throw PlatformException(
+          code: error.code, message: error.type, details: error.message);
     });
 
-    FlutterKinSdk.balanceStream.stream.listen(
-        (BalanceReport balanceReport) async {
+    FlutterKinSdk.balanceStream.stream
+        .listen((BalanceReport balanceReport) async {
       if (balanceReport.publicAddress == firstPublicAddress) {
         print(balanceReport.amount);
       }
     });
 
-    FlutterKinSdk.initKinClient("wBu7");
+    flutterKinSdk = FlutterKinSdk(true, "wBu7");
+    flutterKinSdk.initKinClient();
   }
 
   void streamReceiver(Info info) async {
     switch (info.type) {
       case FlutterKinSDKConstans.INIT_KIN_CLIENT:
         print(info.message);
-        firstPublicAddress = await FlutterKinSdk.createAccount();
-        secondPublicAddress = await FlutterKinSdk.createAccount();
+        firstPublicAddress = await flutterKinSdk.createAccount();
+        secondPublicAddress = await flutterKinSdk.createAccount();
         break;
       case FlutterKinSDKConstans.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN:
         print(info.type + " Wallet: " + info.value);
         count++;
-        if (count > 1){
-          FlutterKinSdk.sendTransaction(firstPublicAddress, secondPublicAddress, 100, "some", 1000);
+        if (count > 1) {
+          flutterKinSdk.sendTransaction(
+              firstPublicAddress, secondPublicAddress, 100, "some", 1000);
         }
         break;
       case FlutterKinSDKConstans.DELETE_ACCOUNT:
@@ -60,19 +60,19 @@ class _MyAppState extends State<MyApp> {
         break;
       case FlutterKinSDKConstans.SEND_TRANSACTION:
         print(info.message + " Amount: " + info.value);
-        FlutterKinSdk.fund(firstPublicAddress, 300);
+        flutterKinSdk.fund(firstPublicAddress, 300);
         break;
       case FlutterKinSDKConstans.SEND_WHITELIST_TRANSACTION:
         print(info.message + " Amount: " + info.value);
         break;
       case FlutterKinSDKConstans.PAYMENT_EVENT:
         print(info.message + " Amount: " + info.value);
-        print(await FlutterKinSdk.getAccountBalance(firstPublicAddress));
-        print(await FlutterKinSdk.getAccountBalance(secondPublicAddress));
+        print(await flutterKinSdk.getAccountBalance(firstPublicAddress));
+        print(await flutterKinSdk.getAccountBalance(secondPublicAddress));
         break;
       case FlutterKinSDKConstans.FUND:
         print(info.message + " Amount: " + info.value);
-        print(await FlutterKinSdk.getAccountBalance(firstPublicAddress));
+        print(await flutterKinSdk.getAccountBalance(firstPublicAddress));
         break;
     }
   }
@@ -82,11 +82,9 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Plugin example app'),
+          title: Text('Plugin example app'),
         ),
-        body: Center(
-          child: Text('Running on: $_platformVersion\n'),
-        ),
+        body: Container(),
       ),
     );
   }
