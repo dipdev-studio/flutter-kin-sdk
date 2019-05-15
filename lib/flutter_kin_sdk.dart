@@ -100,7 +100,9 @@ class FlutterKinSdk {
       'memo': memo,
     };
 
-    await api.postRequest(requestUrl, requestJson).then((response) {
+    await api
+        .postRequest(requestUrl, json.encode(requestJson))
+        .then((response) {
       if (response.statusCode == 200) {
         isSuccessfulRequest = true;
       } else {
@@ -221,7 +223,9 @@ class FlutterKinSdk {
         'memo': requestProductionMemo,
       };
 
-      await api.postRequest(requestProductionUrl, params).then((response) {
+      await api
+          .postRequest(requestProductionUrl, json.encode(params))
+          .then((response) {
         if (response.statusCode == 200) {
           Info info = Info(FlutterKinSDKConstans.FUND,
               "Fund successful to $publicAddress", kinAmount.toString());
