@@ -36,6 +36,8 @@ class BalanceReport {
   String publicAddress;
   int amount;
 
+  BalanceReport(this.publicAddress, this.amount);
+
   BalanceReport.fromJson(Map<dynamic, dynamic> raw) {
     Map<String, dynamic> json = Map<String, dynamic>.from(raw);
 

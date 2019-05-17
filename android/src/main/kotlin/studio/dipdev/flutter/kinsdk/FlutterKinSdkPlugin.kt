@@ -64,10 +64,6 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             val isProductionInput: Boolean? = call.argument("isProduction")
             val appId: String = call.argument("appId") ?: return
             if (isProductionInput != null) this.isProduction = isProductionInput
-//            if (this.isProduction) {
-//                sendError("-0", Constants.INIT_KIN_CLIENT.value, "Sorry, but the production network is not implemented in this version of plugin")
-//                return
-//            }
             initKinClient(appId)
             sendReport(Constants.INIT_KIN_CLIENT.value, "Kin init successful")
         } else {
@@ -77,6 +73,13 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         when {
             call.method == Constants.CREATE_ACCOUNT.value -> {
                 result.success(createAccount())
+            }
+
+            call.method == Constants.RECEIVE_PRODUCTION_PAYMENTS_AND_BALANCE.value -> {
+                val publicAddress: String = call.argument("publicAddress") ?: return
+                val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
+                receiveAccountPayment(accountNum)
+                receiveBalanceChanges(accountNum)
             }
 
             call.method == Constants.DELETE_ACCOUNT.value -> {
@@ -167,13 +170,6 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
             if (!isProduction) {
                 createAccountOnPlayground(account)
-            } else {
-
-                val publicAddress = account.publicAddress ?: return null
-                val accountNum = getAccountIndexByPublicAddress(publicAddress) ?: return null
-
-                receiveAccountPayment(accountNum)
-                receiveBalanceChanges(accountNum)
             }
 
             return account.publicAddress
@@ -241,6 +237,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     }
 
     private fun getAccountBalance(accountNum: Int, completion: (balance: BigDecimal) -> Unit) {
+        if (isProduction) return
         val account = getAccount(accountNum) ?: return
         account.balance.run(
                 object : ResultCallback<Balance> {
@@ -285,7 +282,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 sendTransactionRequest.run(object : ResultCallback<TransactionId> {
 
                     override fun onResult(id: TransactionId) {
-                        sendReport(Constants.SEND_TRANSACTION.value, "Transaction was sent successfully", kinAmount.toString())
+                        account.publicAddress?.let { sendReport(Constants.SEND_TRANSACTION.value, it, kinAmount.toString()) }
                     }
 
                     override fun onError(e: Exception) {
@@ -325,8 +322,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
     private fun receiveAccountPayment(accountNum: Int) {
         val account: KinAccount = getAccount(accountNum) ?: return
         account.addPaymentListener { payment ->
-            sendReport(Constants.PAYMENT_EVENT.value, String.format("to = %s, from = %s", payment.sourcePublicKey(),
-                    payment.destinationPublicKey()), payment.amount().toPlainString())
+            account.publicAddress?.let { sendReport(Constants.PAYMENT_EVENT.value, it, payment.amount().toPlainString()) }
         }
     }
 
@@ -448,6 +444,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         SEND_WHITELIST_TRANSACTION("SendWhitelistTransaction"),
         FUND("Fund"),
         CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN("CreateAccountOnPlaygroundBlockchain"),
+        RECEIVE_PRODUCTION_PAYMENTS_AND_BALANCE("ReceiveProductionPaymentsAndBalance"),
         PAYMENT_EVENT("PaymentEvent"),
         ACCOUNT_STATE_CHECK("AccountStateCheck"),
         SEND_INFO_JSON("SendInfoJson"),

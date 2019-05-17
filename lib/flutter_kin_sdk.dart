@@ -8,11 +8,11 @@ import 'utils/lib_utils.dart';
 class FlutterKinSdk {
   Api api = Api();
 
-  bool isProduction = false;
+  final bool _isProduction;
+  String _appId;
+  final String _productionBalaceUrl;
 
-  String appId;
-
-  FlutterKinSdk(this.isProduction, this.appId);
+  FlutterKinSdk(this._isProduction, this._appId, this._productionBalaceUrl);
 
   static MethodChannel _methodChannel =
       MethodChannel(FlutterKinSDKConstans.FLUTTER_KIN_SDK);
@@ -32,6 +32,7 @@ class FlutterKinSdk {
     _streamInfo.receiveBroadcastStream().listen((data) {
       Info info = Info.fromJson(json.decode(data));
       _streamInfoController.add(info);
+      _checkAccountBalanceEvents(info);
     }, onError: (error) {
       Error err = Error.fromJson(json.decode(error.details));
       err.code = error.code;
@@ -58,8 +59,8 @@ class FlutterKinSdk {
   void initKinClient() async {
     initStreams();
     Map<String, dynamic> params = <String, dynamic>{
-      'appId': appId,
-      'isProduction': isProduction,
+      'appId': _appId,
+      'isProduction': _isProduction,
     };
     // getting response by stream
     await _methodChannel.invokeMethod(
@@ -70,7 +71,7 @@ class FlutterKinSdk {
       {String requestProductionUrl,
       int productionStartingBalance,
       String productionStartingMemo}) async {
-    if (isProduction &&
+    if (_isProduction &&
         (requestProductionUrl == null || productionStartingBalance == null))
       return null;
 
@@ -78,7 +79,7 @@ class FlutterKinSdk {
         await _methodChannel.invokeMethod(FlutterKinSDKConstans.CREATE_ACCOUNT);
     if (publicAddress == null) return null;
 
-    if (isProduction) {
+    if (_isProduction) {
       var isSuccessful = await _createAccountOnProduction(
           publicAddress,
           requestProductionUrl,
@@ -111,6 +112,17 @@ class FlutterKinSdk {
         deleteAccount(publicAddress);
       }
     });
+
+    if (isSuccessfulRequest) {
+      Map<String, dynamic> params = <String, dynamic>{
+        'publicAddress': publicAddress,
+      };
+
+      _methodChannel.invokeMethod(
+          FlutterKinSDKConstans.RECEIVE_PRODUCTION_PAYMENTS_AND_BALANCE,
+          params);
+      _checkAccountBalance(publicAddress);
+    }
     return isSuccessfulRequest;
   }
 
@@ -144,12 +156,11 @@ class FlutterKinSdk {
         FlutterKinSDKConstans.EXPORT_ACCOUNT, params);
   }
 
-  Future<int> getAccountBalance(String publicAddress,
-      {String requestProductionUrl}) async {
-    int balance = 0;
-    if (isProduction) {
+  Future<int> getAccountBalance(String publicAddress) async {
+    double balance = 0;
+    if (_isProduction) {
       await api
-          .getRequest(requestProductionUrl + "/" + publicAddress)
+          .getRequest(_productionBalaceUrl + "/" + publicAddress)
           .then((response) {
         if (response.statusCode == 200)
           balance = json.decode(response.body)['balance'];
@@ -165,7 +176,20 @@ class FlutterKinSdk {
           FlutterKinSDKConstans.GET_ACCOUNT_BALANCE, params);
     }
 
-    return balance;
+    return balance.toInt();
+  }
+
+  void _checkAccountBalance(String publicAddress) async {
+    int currentBalance = await getAccountBalance(publicAddress);
+    _streamBalanceController.add(BalanceReport(publicAddress, currentBalance));
+  }
+
+  void _checkAccountBalanceEvents(Info info) async {
+    if (info.type == FlutterKinSDKConstans.SEND_TRANSACTION ||
+        info.type == FlutterKinSDKConstans.PAYMENT_EVENT) {
+      int currentBalance = await getAccountBalance(info.message);
+      _streamBalanceController.add(BalanceReport(info.message, currentBalance));
+    }
   }
 
   Future<AccountStates> getAccountState(String publicAddress) async {
@@ -216,7 +240,7 @@ class FlutterKinSdk {
 
   Future fund(String publicAddress, int kinAmount,
       {String requestProductionUrl, String requestProductionMemo}) async {
-    if (isProduction) {
+    if (_isProduction) {
       Map<String, dynamic> params = <String, dynamic>{
         'destination': publicAddress,
         'amount': kinAmount,
@@ -230,6 +254,7 @@ class FlutterKinSdk {
           Info info = Info(FlutterKinSDKConstans.FUND,
               "Fund successful to $publicAddress", kinAmount.toString());
           _streamInfoController.add(info);
+          _checkAccountBalance(publicAddress);
         } else {
           _sendError(response.body, "-16", FlutterKinSDKConstans.FUND);
         }
@@ -282,6 +307,8 @@ class FlutterKinSDKConstans {
       'CreateAccountOnPlaygroundBlockchain';
   static const String CREATE_ACCOUNT_ON_PRODUCTION_BLOCKCHAIN =
       'CreateAccountOnProductionBlockchain';
+  static const String RECEIVE_PRODUCTION_PAYMENTS_AND_BALANCE =
+      'ReceiveProductionPaymentsAndBalance';
   static const String PAYMENT_EVENT = 'PaymentEvent';
   static const String ACCOUNT_STATE_CHECK = 'AccountStateCheck';
   static const String SEND_INFO_JSON = "SendInfoJson";

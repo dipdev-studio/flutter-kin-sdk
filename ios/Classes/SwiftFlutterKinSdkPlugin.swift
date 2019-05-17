@@ -27,10 +27,6 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             let arguments = call.arguments as? NSDictionary
             isProduction = arguments!["isProduction"] as! Bool
             let appId = arguments!["appId"] as? String
-//            if(isProduction) {
-//                sendError(code: "-0", type: Constants.INIT_KIN_CLIENT.rawValue, message: "Sorry, but the production network is not implemented in this version of plugin")
-//                return
-//            }
             initKinClient(appId: appId)
             sendReport(type: Constants.INIT_KIN_CLIENT.rawValue, message: "Kin init successful")
         } else {
@@ -39,6 +35,16 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         
         if(call.method.elementsEqual(Constants.CREATE_ACCOUNT.rawValue)){
             result(self.createAccount())
+        }
+        
+        if(call.method.elementsEqual(Constants.RECEIVE_PRODUCTION_PAYMENTS_AND_BALANCE.rawValue)){
+            let arguments = call.arguments as? NSDictionary
+            let publicAddress = arguments!["publicAddress"] as? String
+            if (publicAddress == nil){return}
+            let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
+            if (accountNum == nil){return}
+            receiveAccountPayment(accountNum: accountNum!)
+            receiveBalanceChanges(accountNum: accountNum!)
         }
         
         if(call.method.elementsEqual(Constants.DELETE_ACCOUNT.rawValue)){
@@ -166,9 +172,6 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                     self.receiveBalanceChanges(accountNum: accountNum!)
                     self.sendReport(type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Account in playground was created successfully", value: account.publicAddress)
                 }
-            }else{
-                receiveAccountPayment(accountNum: accountNum!)
-                receiveBalanceChanges(accountNum: accountNum!)
             }
             
             return account.publicAddress
@@ -300,6 +303,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     }
     
     private func getAccountBalance(accountNum: Int, completion: @escaping (_ result: Int)->()){
+        if (isProduction) {return}
         let account = getAccount(accountNum: accountNum)
         if (account == nil) {return}
         getAccountBalance(forAccount: account!) { kin in
@@ -327,7 +331,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         let account = getAccount(accountNum: fromAccountNum)
         if (account == nil) {return}
         sendTransaction(fromAccount: account!, toAddress: toAddress, kinAmount: Kin(kinAmount), memo: memo,fee: UInt32(fee)) { txId in
-            self.sendReport(type: Constants.SEND_TRANSACTION.rawValue, message: "Transaction was sent successfully for \(account!.publicAddress)", value: String(kinAmount))
+            self.sendReport(type: Constants.SEND_TRANSACTION.rawValue, message: account!.publicAddress, value: String(kinAmount))
             
             self.getAccountBalance(accountNum: fromAccountNum){ (balance) -> () in
                 self.sendBalance(publicAddress: self.kinClient!.accounts[fromAccountNum]!.publicAddress, amount: balance)
@@ -373,7 +377,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                       kinAmount: Kin(kinAmount),
                                       memo: memo,
                                       fee: UInt32(fee)) { txId in
-            self.sendReport(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: "Transaction was sent successfully for \(kinAmount) Kin - id: \(txId!)", value: String(kinAmount))
+            self.sendReport(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: account!.publicAddress, value: String(kinAmount))
             
         }
     }
@@ -484,7 +488,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             watch = try kinClient!.accounts[accountNum]!.watchPayments(cursor: nil)
             watch.emitter
                 .on(next: {
-                    self.sendReport(type: Constants.PAYMENT_EVENT.rawValue, message: NSString(format: "to = %@, from = %@", $0.destination, $0.source) as String, value: String(($0.amount as NSDecimalNumber).intValue))
+                    self.sendReport(type: Constants.PAYMENT_EVENT.rawValue, message: self.kinClient!.accounts[accountNum]!.publicAddress, value: String(($0.amount as NSDecimalNumber).intValue))
                 })
                 .add(to: linkBag)
         }catch{
@@ -635,6 +639,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         case SEND_WHITELIST_TRANSACTION = "SendWhitelistTransaction"
         case FUND = "Fund"
         case CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN = "CreateAccountOnPlaygroundBlockchain"
+        case RECEIVE_PRODUCTION_PAYMENTS_AND_BALANCE = "ReceiveProductionPaymentsAndBalance"
         case PAYMENT_EVENT = "PaymentEvent"
         case ACCOUNT_STATE_CHECK = "AccountStateCheck"
         case SEND_INFO_JSON = "SendInfoJson"
