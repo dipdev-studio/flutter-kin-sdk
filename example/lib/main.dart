@@ -21,7 +21,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    
+
     FlutterKinSdk.infoStream.stream.listen((data) async {
       streamReceiver(data);
     }, onError: (error) {
@@ -36,7 +36,7 @@ class _MyAppState extends State<MyApp> {
       }
     });
 
-    flutterKinSdk = FlutterKinSdk(false, "wBu7");
+    flutterKinSdk = FlutterKinSdk.playground("wBu7");
     flutterKinSdk.initKinClient();
   }
 
@@ -62,7 +62,7 @@ class _MyAppState extends State<MyApp> {
         print(info.message + " Amount: " + info.value);
         flutterKinSdk.fund(firstPublicAddress, 30);
         break;
-      case FlutterKinSDKConstans.SEND_WHITELIST_TRANSACTION:
+      case FlutterKinSDKConstans.SEND_WHITELIST_PLAYGROUND_TRANSACTION:
         print(info.message + " Amount: " + info.value);
         break;
       case FlutterKinSDKConstans.PAYMENT_EVENT:

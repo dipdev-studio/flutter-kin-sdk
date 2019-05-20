@@ -6,13 +6,26 @@ import 'package:flutter_kin_sdk/utils/api.dart';
 import 'utils/lib_utils.dart';
 
 class FlutterKinSdk {
+  //TODO
+  //send whitelist playground transaction iOS
+  //send whitelist playground transaction Android
+  //send production transaction iOS
+  //send whitelist production transaction iOS
+  //send whitelist production transaction Android
+
   Api api = Api();
 
-  final bool _isProduction;
+  bool _isProduction;
   String _appId;
-  final String _productionBalaceUrl;
+  String _productionBalaceUrl;
 
-  FlutterKinSdk(this._isProduction, this._appId, this._productionBalaceUrl);
+  FlutterKinSdk.playground(this._appId) {
+    _isProduction = false;
+  }
+
+  FlutterKinSdk.production(this._appId, this._productionBalaceUrl) {
+    _isProduction = true;
+  }
 
   static MethodChannel _methodChannel =
       MethodChannel(FlutterKinSDKConstans.FLUTTER_KIN_SDK);
@@ -214,8 +227,7 @@ class FlutterKinSdk {
       'fee': fee,
     };
     // getting response by stream
-    await _methodChannel.invokeMethod(
-        FlutterKinSDKConstans.SEND_TRANSACTION, params);
+    _methodChannel.invokeMethod(FlutterKinSDKConstans.SEND_TRANSACTION, params);
   }
 
   void sendWhitelistTransaction(
@@ -224,7 +236,8 @@ class FlutterKinSdk {
       String toAddress,
       int kinAmount,
       String memo,
-      int fee) async {
+      int fee,
+      {String productionNetworkId}) async {
     Map<String, dynamic> params = <String, dynamic>{
       'publicAddress': publicAddress,
       'whitelistServiceUrl': whitelistServiceUrl,
@@ -233,9 +246,43 @@ class FlutterKinSdk {
       'memo': memo,
       'fee': fee,
     };
-    // getting response by stream
-    await _methodChannel.invokeMethod(
-        FlutterKinSDKConstans.SEND_WHITELIST_TRANSACTION, params);
+
+    if (_isProduction) {
+      if (productionNetworkId == null) return;
+      sendWhitelistProductionTransaction(
+          params, whitelistServiceUrl, productionNetworkId);
+    } else {
+      // getting response by stream
+      _methodChannel.invokeMethod(
+          FlutterKinSDKConstans.SEND_WHITELIST_PLAYGROUND_TRANSACTION, params);
+    }
+  }
+
+  void sendWhitelistProductionTransaction(Map<String, dynamic> params,
+      String whitelistServiceUrl, String productionNetworkId) async {
+    String everlope = await _methodChannel.invokeMethod(
+        FlutterKinSDKConstans.SEND_WHITELIST_PRODUCTION_TRANSACTION, params);
+
+    Map<String, dynamic> serverParams = <String, dynamic>{
+      'envelope': everlope,
+      'network_id': productionNetworkId,
+    };
+
+    await api
+        .postRequest(whitelistServiceUrl, json.encode(serverParams))
+        .then((response) {
+      if (response.statusCode == 200) {
+        Info info = Info(
+            FlutterKinSDKConstans.FUND,
+            "Payment was successful from ${params['publicAddress']} to ${params['toAddress']}",
+            params['kinAmount'].toString());
+        _streamInfoController.add(info);
+        _checkAccountBalance(params['publicAddress']);
+      } else {
+        _sendError(response.body, "-11",
+            FlutterKinSDKConstans.SEND_WHITELIST_PRODUCTION_TRANSACTION);
+      }
+    });
   }
 
   Future fund(String publicAddress, int kinAmount,
@@ -301,7 +348,10 @@ class FlutterKinSDKConstans {
   static const String GET_ACCOUNT_BALANCE = 'GetAccountBalance';
   static const String GET_ACCOUNT_STATE = 'GetAccountState';
   static const String SEND_TRANSACTION = 'SendTransaction';
-  static const String SEND_WHITELIST_TRANSACTION = 'SendWhitelistTransaction';
+  static const String SEND_WHITELIST_PRODUCTION_TRANSACTION =
+      'SendWhitelistProductionTransaction';
+  static const String SEND_WHITELIST_PLAYGROUND_TRANSACTION =
+      'SendWhitelistPlaygroundTransaction';
   static const String FUND = 'Fund';
   static const String CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN =
       'CreateAccountOnPlaygroundBlockchain';
