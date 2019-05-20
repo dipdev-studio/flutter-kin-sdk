@@ -127,7 +127,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 sendTransaction(accountNum, toAddress, kinAmount, memo, fee)
             }
 
-            call.method == Constants.SEND_WHITELIST_TRANSACTION.value -> {
+            call.method == Constants.SEND_WHITELIST_PLAYGROUND_TRANSACTION.value -> {
                 var publicAddress: String = call.argument("publicAddress") ?: return
                 var whitelistServiceUrl: String = call.argument("whitelistServiceUrl") ?: return
                 var toAddress: String = call.argument("toAddress") ?: return
@@ -135,6 +135,18 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 var memo: String? = call.argument("memo")
                 var fee: Int = call.argument("fee") ?: return
 
+            }
+
+            call.method == Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.value -> {
+                var publicAddress: String = call.argument("publicAddress") ?: return
+                var whitelistServiceUrl: String = call.argument("whitelistServiceUrl") ?: return
+                var toAddress: String = call.argument("toAddress") ?: return
+                var kinAmount: Int = call.argument("kinAmount") ?: return
+                var memo: String? = call.argument("memo")
+                var fee: Int = call.argument("fee") ?: return
+
+                val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
+                sendWhitelistProductionTransaction(accountNum, whitelistServiceUrl, toAddress, kinAmount, memo, fee, fun(everlope: String) { result.success(everlope) })
             }
 
             call.method == Constants.FUND.value -> {
@@ -297,6 +309,25 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         })
     }
 
+    private fun sendWhitelistProductionTransaction(accountNum: Int, whitelistServiceUrl: String, toAddress: String, kinAmount: Int, memo: String?, fee: Int, completion: (everlope: String) -> Unit) {
+        val account = getAccount(accountNum) ?: return
+        val amountInKin = BigDecimal(kinAmount.toString())
+        val buildTransactionRequest = account.buildTransaction(toAddress, amountInKin, fee, memo)
+
+        buildTransactionRequest.run(object : ResultCallback<Transaction> {
+
+            override fun onResult(transaction: Transaction) {
+                val whitelistService = WhitelistService()
+                val whitelistTransaction = whitelistService.whitelistTransaction(transaction.getWhitelistableTransaction())
+                completion(whitelistTransaction)
+            }
+
+            override fun onError(e: Exception) {
+                sendError(Constants.SEND_TRANSACTION.value, e)
+            }
+        })
+    }
+
     private fun fund(accountNum: Int, kinAmount: Int) {
         val account = kinClient.getAccount(accountNum)
         AccountOnPlayground().fundOnAccount(account, kinAmount, object : AccountOnPlayground.Callbacks {
@@ -441,7 +472,8 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         GET_ACCOUNT_BALANCE("GetAccountBalance"),
         GET_ACCOUNT_STATE("GetAccountState"),
         SEND_TRANSACTION("SendTransaction"),
-        SEND_WHITELIST_TRANSACTION("SendWhitelistTransaction"),
+        SEND_WHITELIST_PRODUCTION_TRANSACTION("SendWhitelistProductionTransaction"),
+        SEND_WHITELIST_PLAYGROUND_TRANSACTION("SendWhitelistPlaygroundTransaction"),
         FUND("Fund"),
         CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN("CreateAccountOnPlaygroundBlockchain"),
         RECEIVE_PRODUCTION_PAYMENTS_AND_BALANCE("ReceiveProductionPaymentsAndBalance"),
