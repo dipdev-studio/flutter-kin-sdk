@@ -236,8 +236,7 @@ class FlutterKinSdk {
       String toAddress,
       int kinAmount,
       String memo,
-      int fee,
-      {String productionNetworkId}) async {
+      int fee) async {
     Map<String, dynamic> params = <String, dynamic>{
       'publicAddress': publicAddress,
       'whitelistServiceUrl': whitelistServiceUrl,
@@ -247,43 +246,37 @@ class FlutterKinSdk {
       'fee': fee,
     };
 
-    if (_isProduction) {
-      if (productionNetworkId == null) return;
-      sendWhitelistProductionTransaction(
-          params, whitelistServiceUrl, productionNetworkId);
-    } else {
-      // getting response by stream
-      _methodChannel.invokeMethod(
-          FlutterKinSDKConstans.SEND_WHITELIST_PLAYGROUND_TRANSACTION, params);
-    }
-  }
-
-  void sendWhitelistProductionTransaction(Map<String, dynamic> params,
-      String whitelistServiceUrl, String productionNetworkId) async {
-    String everlope = await _methodChannel.invokeMethod(
+    // if (_isProduction) {
+    //   sendWhitelistProductionTransaction(params, whitelistServiceUrl);
+    // } else {
+    // getting response by stream
+    _methodChannel.invokeMethod(
         FlutterKinSDKConstans.SEND_WHITELIST_PRODUCTION_TRANSACTION, params);
-
-    Map<String, dynamic> serverParams = <String, dynamic>{
-      'envelope': everlope,
-      'network_id': productionNetworkId,
-    };
-
-    await api
-        .postRequest(whitelistServiceUrl, json.encode(serverParams))
-        .then((response) {
-      if (response.statusCode == 200) {
-        Info info = Info(
-            FlutterKinSDKConstans.FUND,
-            "Payment was successful from ${params['publicAddress']} to ${params['toAddress']}",
-            params['kinAmount'].toString());
-        _streamInfoController.add(info);
-        _checkAccountBalance(params['publicAddress']);
-      } else {
-        _sendError(response.body, "-11",
-            FlutterKinSDKConstans.SEND_WHITELIST_PRODUCTION_TRANSACTION);
-      }
-    });
+        
+    // }
   }
+
+  // void sendWhitelistProductionTransaction(
+  //     Map<String, dynamic> params, String whitelistServiceUrl) async {
+  //   String transactionJson = await _methodChannel.invokeMethod(
+  //       FlutterKinSDKConstans.SEND_WHITELIST_PRODUCTION_TRANSACTION, params);
+
+  //   await api
+  //       .postRequest(whitelistServiceUrl, transactionJson)
+  //       .then((response) {
+  //     if (response.statusCode == 200) {
+  //       Info info = Info(
+  //           FlutterKinSDKConstans.FUND,
+  //           "Payment was successful from ${params['publicAddress']} to ${params['toAddress']}",
+  //           params['kinAmount'].toString());
+  //       _streamInfoController.add(info);
+  //       _checkAccountBalance(params['publicAddress']);
+  //     } else {
+  //       _sendError(response.body, "-11",
+  //           FlutterKinSDKConstans.SEND_WHITELIST_PRODUCTION_TRANSACTION);
+  //     }
+  //   });
+  // }
 
   Future fund(String publicAddress, int kinAmount,
       {String requestProductionUrl, String requestProductionMemo}) async {
