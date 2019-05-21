@@ -155,8 +155,12 @@ class FlutterKinSdk {
       'secretPassphrase': secretPassphrase,
     };
     // public address will be returned
-    return await _methodChannel.invokeMethod(
+    var publicAddress = await _methodChannel.invokeMethod(
         FlutterKinSDKConstans.IMPORT_ACCOUNT, params);
+
+    if (publicAddress != null) _checkAccountBalance(publicAddress);
+
+    return publicAddress;
   }
 
   Future<String> exportAccount(
@@ -252,7 +256,7 @@ class FlutterKinSdk {
     // getting response by stream
     _methodChannel.invokeMethod(
         FlutterKinSDKConstans.SEND_WHITELIST_PRODUCTION_TRANSACTION, params);
-        
+
     // }
   }
 
