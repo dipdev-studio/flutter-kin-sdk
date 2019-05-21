@@ -110,7 +110,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             sendTransaction(fromAccountNum: accountNum!, toAddress: toAddress!, kinAmount: kinAmount!, memo: memo, fee: fee!)
         }
         
-        if(call.method.elementsEqual(Constants.SEND_WHITELIST_TRANSACTION.rawValue)){
+        if(call.method.elementsEqual(Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.rawValue)){
             let arguments = call.arguments as? NSDictionary
             let whitelistServiceUrl = arguments!["whitelistServiceUrl"] as? String
             let publicAddress = arguments!["publicAddress"] as? String
@@ -121,7 +121,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             if (whitelistServiceUrl == nil || publicAddress == nil || toAddress == nil || kinAmount == nil || fee == nil){return}
             let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
             if (accountNum == nil){return}
-            sendWhitelistTransaction(whitelistServiceUrl: whitelistServiceUrl!, fromAccountNum: accountNum!, toAddress: toAddress!, kinAmount: kinAmount!, memo: memo, fee: fee!)
+            sendWhitelistProductionTransaction(whitelistServiceUrl: whitelistServiceUrl!, fromAccountNum: accountNum!, toAddress: toAddress!, kinAmount: kinAmount!, memo: memo, fee: fee!)
         }
         
         if(call.method.elementsEqual(Constants.FUND.rawValue)){
@@ -369,7 +369,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func sendWhitelistTransaction(whitelistServiceUrl: String, fromAccountNum: Int, toAddress: String, kinAmount: Int, memo: String?, fee: Int) {
+    private func sendWhitelistProductionTransaction(whitelistServiceUrl: String, fromAccountNum: Int, toAddress: String, kinAmount: Int, memo: String?, fee: Int) {
         let account = getAccount(accountNum: fromAccountNum)
         if (account == nil) {return}
         self.sendWhitelistTransaction(whitelistServiceUrl: whitelistServiceUrl,
@@ -377,7 +377,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                       kinAmount: Kin(kinAmount),
                                       memo: memo,
                                       fee: UInt32(fee)) { txId in
-            self.sendReport(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: account!.publicAddress, value: String(kinAmount))
+            self.sendReport(type: Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.rawValue, message: account!.publicAddress, value: String(kinAmount))
             
         }
     }
@@ -391,9 +391,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                           completionHandler: ((String?) -> ())?) {
         account.generateTransaction(to: address, kin: kin, memo: memo, fee: fee) { (envelope, error) in
             if error != nil || envelope == nil {
-                self.sendError(code: "-9", type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: "Could not generate the transaction")
+                self.sendError(code: "-9", type: Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.rawValue, message: "Could not generate the transaction")
                 if let error = error {
-                    self.sendError(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, error: error)
+                    self.sendError(type: Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.rawValue, error: error)
                 }
                 completionHandler?(nil)
                 return
@@ -406,18 +406,18 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                                           envelope: whitelistEnvelope) { (signedEnvelope, error) in
                                             if error != nil || signedEnvelope == nil {
                                                 print("Error whitelisting the envelope")
-                                                self.sendError(code: "-10", type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: "Error whitelisting the envelope")
+                                                self.sendError(code: "-10", type: Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.rawValue, message: "Error whitelisting the envelope")
                                                 if let error = error {
-                                                    self.sendError(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, error: error)
+                                                    self.sendError(type: Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.rawValue, error: error)
                                                 }
                                                 completionHandler?(nil)
                                                 return
                                             }
                                             account.sendTransaction(signedEnvelope!) { (txId, error) in
                                                 if error != nil || txId == nil {
-                                                    self.sendError(code: "-11", type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, message: "Error send whitelist transaction")
+                                                    self.sendError(code: "-11", type: Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.rawValue, message: "Error send whitelist transaction")
                                                     if let error = error {
-                                                        self.sendError(type: Constants.SEND_WHITELIST_TRANSACTION.rawValue, error: error)
+                                                        self.sendError(type: Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.rawValue, error: error)
                                                     }
                                                     completionHandler?(nil)
                                                     return
@@ -636,7 +636,8 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         case GET_ACCOUNT_BALANCE = "GetAccountBalance"
         case GET_ACCOUNT_STATE = "GetAccountState"
         case SEND_TRANSACTION = "SendTransaction"
-        case SEND_WHITELIST_TRANSACTION = "SendWhitelistTransaction"
+        case SEND_WHITELIST_PRODUCTION_TRANSACTION = "SendWhitelistProductionTransaction"
+        case SEND_WHITELIST_PLAYGROUND_TRANSACTION = "SendWhitelistPlaygroundTransaction"
         case FUND = "Fund"
         case CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN = "CreateAccountOnPlaygroundBlockchain"
         case RECEIVE_PRODUCTION_PAYMENTS_AND_BALANCE = "ReceiveProductionPaymentsAndBalance"
