@@ -140,8 +140,8 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         var url: String
         var network : Network
         if (isProduction) {
-            network = .mainNet
-            url = "https://horizon-ecosystem.kininfrastructure.com"
+            network = Network.custom("Kin Mainnet ; December 2018")
+            url = "https://horizon.kinfederation.com"
         }else{
             network = .testNet
             url = "https://horizon-testnet.kininfrastructure.com"
@@ -399,7 +399,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                 return
             }
             
-            let networkId = Network.testNet.id
+            let networkId = "Kin Mainnet ; December 2018"
             let whitelistEnvelope = WhitelistEnvelope(transactionEnvelope: envelope!, networkId: networkId)
             
             self.signWhitelistTransaction(whitelistServiceUrl: whitelistServiceUrl,
@@ -429,9 +429,9 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    private func signWhitelistTransaction(whitelistServiceUrl: String,
-                                          envelope: WhitelistEnvelope,
-                                          completionHandler: @escaping ((KinSDK.TransactionEnvelope?, Error?) -> ())) {
+    func signWhitelistTransaction(whitelistServiceUrl: String,
+                                  envelope: WhitelistEnvelope,
+                                  completionHandler: @escaping ((TransactionEnvelope?, Error?) -> ())) {
         let whitelistingUrl = URL(string: whitelistServiceUrl)!
         
         var request = URLRequest(url: whitelistingUrl)
@@ -441,8 +441,17 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         
         let task = URLSession.shared.dataTask(with: request) { (data, response, error) in
             do {
-                let envelope = try TransactionEnvelope.decodeResponse(data: data, error: error)
-                completionHandler(envelope, nil)
+                
+                do {
+                    completionHandler(try TransactionEnvelope.init(from: XDRDecoder.init(data: data!)), nil)
+                }
+                catch let err{
+                    print(err.localizedDescription)
+                    throw err
+                }
+                
+//                let transactionEnvelope = try TransactionEnvelope.decodeResponse(data: data, error: error)
+                
             }
             catch {
                 completionHandler(nil, error)
