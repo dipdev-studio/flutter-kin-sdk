@@ -429,7 +429,6 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         return true
     }
 
-
     private fun sendBalance(publicAddress: String, amount: Int) {
         val balanceReport = BalanceReport(publicAddress, amount)
         var json: String? = null
@@ -438,7 +437,12 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         } catch (e: Throwable) {
             sendError(Constants.SEND_BALANCE_JSON.value, e)
         }
-        if (json != null) balanceCallback.success(json)
+        if (json != null)         
+        activity.runOnUiThread(object : Runnable {
+            override fun run() {
+                 balanceCallback.success(json)
+            }
+        })       
     }
 
     private fun sendReport(type: String, message: String, value: String? = null) {
@@ -452,7 +456,12 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         } catch (e: Throwable) {
             sendError(Constants.SEND_INFO_JSON.value, e)
         }
-        if (json != null) infoCallback.success(json)
+        if (json != null) 
+        activity.runOnUiThread(object : Runnable {
+            override fun run() {
+                 infoCallback.success(json)
+            }
+        })
     }
 
     private fun sendError(type: String, error: Throwable) {
@@ -475,10 +484,14 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             sendError(Constants.SEND_ERROR_JSON.value, e)
         }
         if (json != null) {
-            if (!isBalance)
+           activity.runOnUiThread(object : Runnable {
+            override fun run() {
+                   if (!isBalance)
                 infoCallback.error(code, message, json)
             else
                 balanceCallback.error(code, message, json)
+            }
+        })   
         }
     }
 
