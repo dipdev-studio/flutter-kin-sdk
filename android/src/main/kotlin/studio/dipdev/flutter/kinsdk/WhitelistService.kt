@@ -2,6 +2,7 @@ package studio.dipdev.flutter.kinsdk
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 
 import org.json.JSONException
 import org.json.JSONObject
@@ -29,7 +30,10 @@ internal class WhitelistService(private val URL_WHITELISTING_SERVICE:String) {
     @Throws(JSONException::class)
     fun whitelistTransaction(whitelistableTransaction: WhitelistableTransaction,
                              whitelistServiceListener:FlutterKinSdkPlugin.WhitelistServiceCallbacks) {
-        val requestBody = RequestBody.create(JSON, toJson(whitelistableTransaction))
+        val json = toJson(whitelistableTransaction)
+
+        Log.d("Transaction", "whitelistTransaction - json: $json")
+        val requestBody = RequestBody.create(JSON, json)
         val request = Request.Builder()
                 .url(URL_WHITELISTING_SERVICE)
                 .post(requestBody)
@@ -37,11 +41,13 @@ internal class WhitelistService(private val URL_WHITELISTING_SERVICE:String) {
         okHttpClient.newCall(request)
                 .enqueue(object : Callback {
                     override fun onFailure(call: Call, e: IOException) {
+                        Log.d("Transaction", "whitelistTransaction - onFailure: ${e.message}")
                         fireOnFailure(whitelistServiceListener, e)
                     }
 
                     @Throws(IOException::class)
                     override fun onResponse(call: Call, response: Response) {
+                        Log.d("Transaction", "whitelistTransaction - onResult: ${response.body().toString()}")
                         handleResponse(response, whitelistServiceListener)
                     }
                 })
@@ -50,7 +56,6 @@ internal class WhitelistService(private val URL_WHITELISTING_SERVICE:String) {
     @Throws(IOException::class)
     private fun handleResponse(response: Response, whitelistServiceListener:FlutterKinSdkPlugin.WhitelistServiceCallbacks?) {
         if (whitelistServiceListener != null) {
-
             if (response.body() != null) {
                 fireOnSuccess(whitelistServiceListener, response.body()!!.string())
             } else {

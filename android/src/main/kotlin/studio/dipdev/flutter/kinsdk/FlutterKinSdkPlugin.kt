@@ -2,6 +2,7 @@ package studio.dipdev.flutter.kinsdk
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -12,9 +13,7 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import kin.sdk.*
 import kin.sdk.exception.CreateAccountException
 import kin.utils.ResultCallback
-import kin.sdk.TransactionId
 import java.math.BigDecimal
-import kin.sdk.KinAccount
 
 
 class FlutterKinSdkPlugin(private var activity: Activity, private var context: Context) : MethodCallHandler {
@@ -319,18 +318,25 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
 
             override fun onResult(transaction: Transaction) {
 
-                whitelistService.whitelistTransaction(transaction.whitelistableTransaction, object : WhitelistServiceCallbacks {
+                Log.d("Transaction", "onResult: networkPassphrase - " + transaction.whitelistableTransaction.networkPassphrase + ", transactionPayload - " + transaction.whitelistableTransaction.transactionPayload.toString())
 
+                whitelistService.whitelistTransaction(transaction.whitelistableTransaction, object : WhitelistServiceCallbacks {
                     override fun onSuccess(whitelistTransaction: String) {
+                        Log.d("Transaction", "whitelistTransaction: $whitelistTransaction")
 
                         val sendTransactionRequest = account.sendWhitelistTransaction(whitelistTransaction)
                         sendTransactionRequest.run(object : ResultCallback<TransactionId> {
+                            override fun onResult(result: TransactionId?) {
+                                Log.d("Transaction", "sendTransactionRequest - onResult: ${result?.id()}")
 
-                            override fun onResult(id: TransactionId) {
                                 account.publicAddress?.let { sendReport(Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.value, it, kinAmount.toString()) }
                             }
 
-                            override fun onError(e: Exception) {
+                            override fun onError(e: java.lang.Exception?) {
+
+                                if (e == null) return
+                                Log.d("Transaction", "sendTransactionRequest - onError: ${e.message}")
+
                                 sendError(Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.value, e)
                             }
                         })
