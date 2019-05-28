@@ -43,7 +43,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             if (publicAddress == nil){return}
             let accountNum: Int? = getAccountNum(publicAddress: publicAddress!)
             if (accountNum == nil){return}
-            receiveAccountPayment(accountNum: accountNum!)
+//            receiveAccountPayment(accountNum: accountNum!)
             receiveBalanceChanges(accountNum: accountNum!)
         }
         
@@ -168,7 +168,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
                         self.deleteAccount(accountNum: accountNum!)
                         return
                     }
-                    self.receiveAccountPayment(accountNum: accountNum!)
+//                    self.receiveAccountPayment(accountNum: accountNum!)
                     self.receiveBalanceChanges(accountNum: accountNum!)
                     self.sendReport(type: Constants.CREATE_ACCOUNT_ON_PLAYGROUND_BLOCKCHAIN.rawValue, message: "Account in playground was created successfully", value: account.publicAddress)
                 }
@@ -233,7 +233,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
             
             let accountNum = getAccountNum(publicAddress: account.publicAddress)
             if (accountNum == nil) {return nil}
-            receiveAccountPayment(accountNum: accountNum!)
+//            receiveAccountPayment(accountNum: accountNum!)
             receiveBalanceChanges(accountNum: accountNum!)
             
             return account
@@ -485,7 +485,7 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
     private func receiveAccountsPaymentsAndBalanceChanges() {
         if(!isKinClientInit() || kinClient?.accounts.count == 0){return}
         for index in 0...((kinClient?.accounts.count)! - 1) {
-            receiveAccountPayment(accountNum: index)
+//            receiveAccountPayment(accountNum: index)
             receiveBalanceChanges(accountNum: index)
         }
     }
@@ -495,11 +495,18 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         let watch: PaymentWatch
         do{
             watch = try kinClient!.accounts[accountNum]!.watchPayments(cursor: nil)
+            sleep(1)
+//            usleep(200000)
             watch.emitter
-                .on(next: {
-                    self.sendReport(type: Constants.PAYMENT_EVENT.rawValue, message: self.kinClient!.accounts[accountNum]!.publicAddress, value: String(($0.amount as NSDecimalNumber).intValue))
+                .on(next: { [weak self] payments in
+                    self?.sendReport(type: Constants.PAYMENT_EVENT.rawValue, message: (self?.kinClient!.accounts[accountNum]!.publicAddress)!, value: String((payments.amount as NSDecimalNumber).intValue))
+                })
+                .on(queue: .main, next: { [weak self] payments in
+                    self?.sendReport(type: Constants.PAYMENT_EVENT.rawValue, message: (self?.kinClient!.accounts[accountNum]!.publicAddress)!, value: String((payments.amount as NSDecimalNumber).intValue))
                 })
                 .add(to: linkBag)
+            
+            
         }catch{
             sendError(type: Constants.PAYMENT_EVENT.rawValue, error: error)
         }
@@ -512,11 +519,17 @@ public class SwiftFlutterKinSdkPlugin: NSObject, FlutterPlugin {
         do {
             if(!isKinClientInit()) {return}
             watch = try kinClient!.accounts[accountNum]!.watchBalance(nil)
+            sleep(1)
             watch.emitter
                 .on(next: {
                     self.sendBalance(publicAddress: self.kinClient!.accounts[accountNum]!.publicAddress, amount: ($0 as NSDecimalNumber).intValue)
                 })
                 .add(to: linkBag)
+
+//            watch.emitter.on(queue: .main, next: { [weak self] balance in
+//                self?.sendBalance(publicAddress: (self?.kinClient!.accounts[accountNum]!.publicAddress)!, amount: (balance as NSDecimalNumber).intValue)
+//            })
+//                .add(to: linkBag)
         } catch {
             sendError(code: "-12", type: Constants.GET_ACCOUNT_BALANCE.rawValue, message: "Balance change exception")
         }
