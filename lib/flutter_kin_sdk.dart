@@ -239,15 +239,14 @@ class FlutterKinSdk {
       String whitelistServiceUrl,
       String toAddress,
       int kinAmount,
-      String memo,
-      int fee) async {
+      String memo) async {
     Map<String, dynamic> params = <String, dynamic>{
       'publicAddress': publicAddress,
       'whitelistServiceUrl': whitelistServiceUrl,
       'toAddress': toAddress,
       'kinAmount': kinAmount,
       'memo': memo,
-      'fee': fee,
+      'fee': 0,
     };
 
     // if (_isProduction) {

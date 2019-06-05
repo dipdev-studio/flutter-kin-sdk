@@ -142,10 +142,9 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                 val toAddress: String = call.argument("toAddress") ?: return
                 val kinAmount: Int = call.argument("kinAmount") ?: return
                 val memo: String? = call.argument("memo")
-                val fee: Int = call.argument("fee") ?: return
 
                 val accountNum: Int = getAccountIndexByPublicAddress(publicAddress) ?: return
-                sendWhitelistProductionTransaction(accountNum, whitelistServiceUrl, toAddress, kinAmount, memo, fee)
+                sendWhitelistProductionTransaction(accountNum, whitelistServiceUrl, toAddress, kinAmount, memo)
             }
 
             call.method == Constants.FUND.value -> {
@@ -308,17 +307,15 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         })
     }
 
-    private fun sendWhitelistProductionTransaction(accountNum: Int, whitelistServiceUrl: String, toAddress: String, kinAmount: Int, memo: String?, fee: Int) {
+    private fun sendWhitelistProductionTransaction(accountNum: Int, whitelistServiceUrl: String, toAddress: String, kinAmount: Int, memo: String?) {
         val account = getAccount(accountNum) ?: return
         val amountInKin = BigDecimal(kinAmount.toString())
         whitelistService = WhitelistService(whitelistServiceUrl)
-        val buildTransactionRequest = account.buildTransaction(toAddress, amountInKin, fee, memo)
+        val buildTransactionRequest = account.buildTransaction(toAddress, amountInKin, 0, memo)
 
         buildTransactionRequest.run(object : ResultCallback<Transaction> {
 
             override fun onResult(transaction: Transaction) {
-
-                Log.d("Transaction", "onResult: networkPassphrase - " + transaction.whitelistableTransaction.networkPassphrase + ", transactionPayload - " + transaction.whitelistableTransaction.transactionPayload.toString())
 
                 whitelistService.whitelistTransaction(transaction.whitelistableTransaction, object : WhitelistServiceCallbacks {
                     override fun onSuccess(whitelistTransaction: String) {
@@ -333,22 +330,22 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
                             }
 
                             override fun onError(e: java.lang.Exception?) {
-
                                 if (e == null) return
-                                Log.d("Transaction", "sendTransactionRequest - onError: ${e.message}")
-
+                                Log.d("Transaction", "ResultCallback<TransactionId> - onError: ${e.message}")
                                 sendError(Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.value, e)
                             }
                         })
                     }
 
                     override fun onFailure(e: Exception) {
+                        Log.d("Transaction", "WhitelistServiceCallbacks - onFailure: ${e.message}")
                         sendError(Constants.SEND_WHITELIST_PRODUCTION_TRANSACTION.value, e)
                     }
                 })
             }
 
             override fun onError(e: Exception) {
+                Log.d("Transaction", "ResultCallback<Transaction> - onError: ${e.message}")
                 sendError(Constants.SEND_TRANSACTION.value, e)
             }
         })
@@ -437,12 +434,12 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         } catch (e: Throwable) {
             sendError(Constants.SEND_BALANCE_JSON.value, e)
         }
-        if (json != null)         
+        if (json != null)
         activity.runOnUiThread(object : Runnable {
             override fun run() {
                  balanceCallback.success(json)
             }
-        })       
+        })
     }
 
     private fun sendReport(type: String, message: String, value: String? = null) {
@@ -456,7 +453,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
         } catch (e: Throwable) {
             sendError(Constants.SEND_INFO_JSON.value, e)
         }
-        if (json != null) 
+        if (json != null)
         activity.runOnUiThread(object : Runnable {
             override fun run() {
                  infoCallback.success(json)
@@ -491,7 +488,7 @@ class FlutterKinSdkPlugin(private var activity: Activity, private var context: C
             else
                 balanceCallback.error(code, message, json)
             }
-        })   
+        })
         }
     }
 
